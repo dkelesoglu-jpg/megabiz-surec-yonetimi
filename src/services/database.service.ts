@@ -9,6 +9,7 @@ import type {
     Task,
     KPI,
     PerformanceReview,
+    EvaluationPeriod,
     DashboardStats,
     Procedure,
     Profile,
@@ -22,6 +23,18 @@ function handleResponse<T>(data: T | null, error: any): T {
     }
     if (!data) throw new Error('Veri bulunamadı');
     return data;
+}
+
+// Supabase hata detaylarını geliştirme konsoluna ayrıntılı yazdırır.
+// Bu sayede INSERT/UPDATE/DELETE başarısız olduğunda gerçek hata nedeni
+// (message, code, details, hint) kolayca görülebilir.
+function logSupabaseError(error: any, context: string) {
+    console.error(`[${context}] Supabase hata detayları:`, {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+    });
 }
 
 // ========================================
@@ -620,6 +633,76 @@ export const performanceReviewsService = {
             .select()
             .single();
         return handleResponse(data, error);
+    },
+};
+
+// ========================================
+// EVALUATION PERIODS SERVICE
+// (Değerlendirme Dönemleri)
+// ========================================
+export const evaluationPeriodsService = {
+    async getAll(): Promise<EvaluationPeriod[]> {
+        const { data, error } = await supabase
+            .from('evaluation_periods')
+            .select('*, department:departments(*)')
+            .order('start_date', { ascending: false });
+        if (error) {
+            logSupabaseError(error, 'evaluationPeriods.getAll');
+            throw new Error(`Veritabanı hatası: ${error.message}`);
+        }
+        return data ?? [];
+    },
+
+    async getById(id: string): Promise<EvaluationPeriod> {
+        const { data, error } = await supabase
+            .from('evaluation_periods')
+            .select('*, department:departments(*)')
+            .eq('id', id)
+            .single();
+        if (error) {
+            logSupabaseError(error, 'evaluationPeriods.getById');
+            throw new Error(`Veritabanı hatası: ${error.message}`);
+        }
+        return data;
+    },
+
+    async create(period: Partial<EvaluationPeriod>) {
+        const { data, error } = await supabase
+            .from('evaluation_periods')
+            .insert(period)
+            .select()
+            .single();
+        if (error) {
+            logSupabaseError(error, 'evaluationPeriods.create');
+            throw new Error(`Dönem kaydedilirken bir hata oluştu: ${error.message}`);
+        }
+        return data;
+    },
+
+    async update(id: string, updates: Partial<EvaluationPeriod>) {
+        const { data, error } = await supabase
+            .from('evaluation_periods')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+        if (error) {
+            logSupabaseError(error, 'evaluationPeriods.update');
+            throw new Error(`Dönem güncellenirken bir hata oluştu: ${error.message}`);
+        }
+        return data;
+    },
+
+    // "Delete" işlemi güvenli şekilde arşivler (kayıt gerçekten silinmez)
+    async delete(id: string) {
+        const { error } = await supabase
+            .from('evaluation_periods')
+            .update({ status: 'archived' })
+            .eq('id', id);
+        if (error) {
+            logSupabaseError(error, 'evaluationPeriods.delete');
+            throw new Error(`Dönem arşivlenirken bir hata oluştu: ${error.message}`);
+        }
     },
 };
 

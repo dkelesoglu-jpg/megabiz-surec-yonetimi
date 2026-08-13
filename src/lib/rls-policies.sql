@@ -15,6 +15,7 @@ ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE kpis ENABLE ROW LEVEL SECURITY;
 ALTER TABLE performance_reviews ENABLE ROW LEVEL SECURITY;
+ALTER TABLE evaluation_periods ENABLE ROW LEVEL SECURITY;
 
 -- ========================================
 -- HELPER FUNCTIONS
@@ -394,4 +395,32 @@ CREATE POLICY perf_employee_read ON performance_reviews
             SELECT id FROM employees
             WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
         )
+    );
+
+-- ========================================
+-- 12. EVALUATION PERIODS POLICIES
+-- (Değerlendirme Dönemleri)
+-- ========================================
+
+-- Admin & İK: dönem oluşturabilir, okuyabilir, güncelleyebilir, arşivleyebilir
+CREATE POLICY eval_periods_admin_all ON evaluation_periods
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'))
+    WITH CHECK (get_user_role() IN ('system_admin', 'human_resources'));
+
+-- Üst yönetim (YK Başkanı, Genel Müdür, GM Yardımcısı): tüm dönemleri okuyabilir
+CREATE POLICY eval_periods_management_read ON evaluation_periods
+    FOR SELECT USING (get_user_permission_level() >= 4);
+
+-- Departman Müdürü: şirket geneli veya kendi departmanı kapsamındaki dönemleri okuyabilir
+CREATE POLICY eval_periods_manager_read ON evaluation_periods
+    FOR SELECT USING (
+        get_user_role() = 'department_manager' AND (
+            scope = 'all_company' OR department_id = get_user_department_id()
+        )
+    );
+
+-- Çalışan: aktif (açık) dönemleri okuyabilir
+CREATE POLICY eval_periods_employee_read ON evaluation_periods
+    FOR SELECT USING (
+        get_user_permission_level() >= 1 AND status IN ('active', 'completed')
     );

@@ -28,6 +28,9 @@ export type ReviewStatus = 'pending' | 'in_progress' | 'completed' | 'approved';
 export type FrequencyType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'as_needed';
 export type KPIFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 export type KPIStatus = 'active' | 'inactive' | 'archived';
+export type EvaluationType = 'manager' | 'self' | 'peer' | 'subordinate' | 'mixed';
+export type EvaluationScope = 'all_company' | 'department';
+export type PeriodStatus = 'draft' | 'active' | 'completed' | 'archived';
 
 export interface Profile {
     id: string;
@@ -207,6 +210,21 @@ export interface PerformanceReview {
     updated_at: string;
     employee?: Employee;
     evaluator?: Employee;
+}
+
+export interface EvaluationPeriod {
+    id: string;
+    name: string;
+    start_date: string;
+    end_date: string;
+    evaluation_type: EvaluationType;
+    scope: EvaluationScope;
+    department_id: string | null;
+    status: PeriodStatus;
+    created_by: string | null;
+    created_at: string;
+    updated_at: string;
+    department?: Department;
 }
 
 export interface DashboardStats {

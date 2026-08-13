@@ -286,6 +286,36 @@ CREATE INDEX idx_perf_status ON performance_reviews(status);
 CREATE INDEX idx_perf_period ON performance_reviews(period);
 
 -- ========================================
+-- 12. EVALUATION PERIODS TABLE
+-- (Değerlendirme Dönemleri)
+-- ========================================
+CREATE TABLE IF NOT EXISTS evaluation_periods (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    evaluation_type VARCHAR(50) NOT NULL CHECK (evaluation_type IN (
+        'manager', 'self', 'peer', 'subordinate', 'mixed'
+    )),
+    scope VARCHAR(50) NOT NULL DEFAULT 'all_company' CHECK (scope IN (
+        'all_company', 'department'
+    )),
+    department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN (
+        'draft', 'active', 'completed', 'archived'
+    )),
+    created_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    CONSTRAINT chk_evaluation_period_dates CHECK (end_date >= start_date)
+);
+
+CREATE INDEX idx_eval_periods_status ON evaluation_periods(status);
+CREATE INDEX idx_eval_periods_scope ON evaluation_periods(scope);
+CREATE INDEX idx_eval_periods_department ON evaluation_periods(department_id);
+CREATE INDEX idx_eval_periods_created_by ON evaluation_periods(created_by);
+
+-- ========================================
 -- TRIGGERS: Auto-update updated_at
 -- ========================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -315,6 +345,8 @@ CREATE TRIGGER update_tasks_updated_at BEFORE UPDATE ON tasks
 CREATE TRIGGER update_kpis_updated_at BEFORE UPDATE ON kpis
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_performance_reviews_updated_at BEFORE UPDATE ON performance_reviews
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_evaluation_periods_updated_at BEFORE UPDATE ON evaluation_periods
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ========================================
