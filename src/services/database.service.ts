@@ -12,6 +12,9 @@ import type {
     DashboardStats,
     Procedure,
     Profile,
+    LeaveType,
+    LeaveRequest,
+    LeaveBalance,
 } from '../lib/supabase';
 
 // Helper function
@@ -692,5 +695,154 @@ export const dashboardService = {
         }, []) || [];
 
         return distribution;
+    },
+};
+
+// ========================================
+// LEAVE TYPES SERVICE (izin_turleri)
+// ========================================
+export const leaveTypesService = {
+    async getAll(): Promise<LeaveType[]> {
+        const { data, error } = await supabase
+            .from('izin_turleri')
+            .select('*')
+            .eq('aktif', true)
+            .order('ad');
+        return handleResponse(data, error);
+    },
+
+    async getById(id: string): Promise<LeaveType> {
+        const { data, error } = await supabase
+            .from('izin_turleri')
+            .select('*')
+            .eq('id', id)
+            .single();
+        return handleResponse(data, error);
+    },
+
+    async create(leaveType: Partial<LeaveType>) {
+        const { data, error } = await supabase
+            .from('izin_turleri')
+            .insert(leaveType)
+            .select()
+            .single();
+        return handleResponse(data, error);
+    },
+
+    async update(id: string, updates: Partial<LeaveType>) {
+        const { data, error } = await supabase
+            .from('izin_turleri')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single();
+        return handleResponse(data, error);
+    },
+};
+
+// ========================================
+// LEAVE BALANCES SERVICE (izin_bakiyeleri)
+// ========================================
+export const leaveBalancesService = {
+    // İlgili çalışan/izin türü/yıl için bakiye satırı yoksa sunucu tarafında
+    // (kıdem + yaş kurallarına göre) otomatik oluşturur, varsa döndürür.
+    async getOrCreate(employeeId: string, izinTuruId: string, yil?: number): Promise<LeaveBalance> {
+        const { data, error } = await supabase.rpc('izin_bakiyesi_getir_veya_olustur', {
+            p_employee_id: employeeId,
+            p_izin_turu_id: izinTuruId,
+            ...(yil ? { p_yil: yil } : {}),
+        });
+        return handleResponse(data, error);
+    },
+
+    async getByEmployee(employeeId: string, yil?: number): Promise<LeaveBalance[]> {
+        let query = supabase
+            .from('izin_bakiyeleri')
+            .select('*, izin_turu:izin_turleri(*)')
+            .eq('employee_id', employeeId);
+        if (yil) query = query.eq('yil', yil);
+        const { data, error } = await query.order('yil', { ascending: false });
+        return handleResponse(data, error);
+    },
+};
+
+// ========================================
+// LEAVE REQUESTS SERVICE (izin_talepleri)
+// ========================================
+export const leaveRequestsService = {
+    async getByEmployee(employeeId: string): Promise<LeaveRequest[]> {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .select('*, izin_turu:izin_turleri(*)')
+            .eq('employee_id', employeeId)
+            .order('created_at', { ascending: false });
+        return handleResponse(data, error);
+    },
+
+    // Yönetici/İK: onay bekleyen talepler
+    async getPending(): Promise<LeaveRequest[]> {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .select('*, employee:employees(*, department:departments(*)), izin_turu:izin_turleri(*)')
+            .eq('durum', 'beklemede')
+            .order('created_at', { ascending: true });
+        return handleResponse(data, error);
+    },
+
+    // Yönetici/İK: tüm talepler (geçmiş dahil)
+    async getAll(): Promise<LeaveRequest[]> {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .select('*, employee:employees(*, department:departments(*)), izin_turu:izin_turleri(*), onaylayan:employees!onaylayan_id(*)')
+            .order('created_at', { ascending: false });
+        return handleResponse(data, error);
+    },
+
+    async create(request: {
+        employee_id: string;
+        izin_turu_id: string;
+        baslangic_tarihi: string;
+        bitis_tarihi: string;
+        aciklama?: string;
+    }) {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .insert(request)
+            .select('*, izin_turu:izin_turleri(*)')
+            .single();
+        return handleResponse(data, error);
+    },
+
+    async cancel(id: string) {
+        const { error } = await supabase
+            .from('izin_talepleri')
+            .update({ durum: 'iptal_edildi' })
+            .eq('id', id);
+        if (error) throw new Error(`İptal hatası: ${error.message}`);
+    },
+
+    async approve(id: string, onaylayanId: string) {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .update({ durum: 'onaylandi', onaylayan_id: onaylayanId, onay_tarihi: new Date().toISOString() })
+            .eq('id', id)
+            .select()
+            .single();
+        return handleResponse(data, error);
+    },
+
+    async reject(id: string, onaylayanId: string, redNedeni: string) {
+        const { data, error } = await supabase
+            .from('izin_talepleri')
+            .update({
+                durum: 'reddedildi',
+                onaylayan_id: onaylayanId,
+                onay_tarihi: new Date().toISOString(),
+                red_nedeni: redNedeni,
+            })
+            .eq('id', id)
+            .select()
+            .single();
+        return handleResponse(data, error);
     },
 };

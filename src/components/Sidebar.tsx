@@ -1,15 +1,17 @@
-import { 
-  LayoutDashboard, 
-  Network, 
-  FileText, 
-  CheckSquare, 
-  TrendingUp, 
-  FolderOpen, 
+import {
+  LayoutDashboard,
+  Network,
+  FileText,
+  CheckSquare,
+  TrendingUp,
+  FolderOpen,
   BarChart3,
+  CalendarDays,
+  CalendarCheck,
   X
 } from 'lucide-react';
-
-type Module = 'dashboard' | 'organization' | 'instructions' | 'tasks' | 'kpi' | 'documents' | 'reports';
+import { useAuth } from '../contexts/AuthContext';
+import type { Module } from '../App';
 
 interface SidebarProps {
   activeModule: Module;
@@ -23,12 +25,28 @@ const menuItems = [
   { id: 'organization' as Module, label: 'Organizasyon Yapısı', icon: Network },
   { id: 'instructions' as Module, label: 'İş Talimatları', icon: FileText },
   { id: 'tasks' as Module, label: 'Görev Takibi', icon: CheckSquare },
+  { id: 'leave-request' as Module, label: 'İzin Taleplerim', icon: CalendarDays },
+  { id: 'leave-approvals' as Module, label: 'İzin Onayları', icon: CalendarCheck, minPermissionLevel: 3, hrAllowed: true },
   { id: 'kpi' as Module, label: 'KPI ve Performans', icon: TrendingUp },
   { id: 'documents' as Module, label: 'Doküman Yönetimi', icon: FolderOpen },
   { id: 'reports' as Module, label: 'Yönetim Raporları', icon: BarChart3 },
 ];
 
+const ROLE_LEVELS: Record<string, number> = {
+  system_admin: 7, board_chairman: 6, general_manager: 5, deputy_general_manager: 4,
+  department_manager: 3, human_resources: 2, employee: 1,
+};
+
 export default function Sidebar({ activeModule, setActiveModule, isOpen, setIsOpen }: SidebarProps) {
+  const { profile } = useAuth();
+  const userLevel = profile ? (ROLE_LEVELS[profile.role] || 0) : 0;
+
+  const visibleItems = menuItems.filter(item => {
+    if (!item.minPermissionLevel) return true;
+    if (item.hrAllowed && profile?.role === 'human_resources') return true;
+    return userLevel >= item.minPermissionLevel;
+  });
+
   return (
     <>
       {/* Mobile overlay */}
@@ -71,7 +89,7 @@ export default function Sidebar({ activeModule, setActiveModule, isOpen, setIsOp
         {/* Navigation */}
         <nav className="flex-1 px-4 py-6 overflow-y-auto">
           <ul className="space-y-2">
-            {menuItems.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeModule === item.id;
               

@@ -8,8 +8,10 @@ import Tasks from './components/Tasks';
 import KPIPerformance from './components/KPIPerformance';
 import Documents from './components/Documents';
 import Reports from './components/Reports';
+import LeaveRequest from './components/LeaveRequest';
+import LeaveApprovals from './components/LeaveApprovals';
 
-type Module = 'dashboard' | 'organization' | 'instructions' | 'tasks' | 'kpi' | 'documents' | 'reports';
+export type Module = 'dashboard' | 'organization' | 'instructions' | 'tasks' | 'kpi' | 'documents' | 'reports' | 'leave-request' | 'leave-approvals';
 
 function App() {
   const [activeModule, setActiveModule] = useState<Module>('dashboard');
@@ -31,6 +33,10 @@ function App() {
         return <Documents />;
       case 'reports':
         return <Reports />;
+      case 'leave-request':
+        return <LeaveRequest />;
+      case 'leave-approvals':
+        return <LeaveApprovals />;
       default:
         return <DashboardNew />;
     }

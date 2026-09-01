@@ -17,6 +17,7 @@ Kurumsal iş talimatları, organizasyon yapısı, görev tanımları ve KPI yön
 - **Doküman Yönetimi**: Dosya yükleme ve versiyonlama
 - **Yönetim Raporları**: Analitik raporlar
 - **Rol Bazlı Yetkilendirme**: Admin, Genel Müdür, Yönetici, Çalışan
+- **İzin Yönetimi**: İzin talebi oluşturma, bakiye takibi, yönetici/İK onay akışı
 
 ### 🔄 Veritabanı Entegrasyonu
 
@@ -27,14 +28,21 @@ Kurumsal iş talimatları, organizasyon yapısı, görev tanımları ve KPI yön
 
 ## 📋 Veritabanı Tabloları
 
-1. **departments** - Departman bilgileri
-2. **positions** - Pozisyon tanımları ve hiyerarşi
-3. **employees** - Çalışan bilgileri ve roller
-4. **job_descriptions** - Görev tanımları
-5. **work_instructions** - İş talimatları
-6. **kpis** - KPI tanımları
-7. **performance_reviews** - Performans değerlendirmeleri
-8. **documents** - Doküman meta verileri
+1. **companies** - Şirketler (multi-tenant altyapı)
+2. **departments** - Departman bilgileri
+3. **positions** - Pozisyon tanımları ve hiyerarşi
+4. **employees** - Çalışan bilgileri ve roller
+5. **job_descriptions** - Görev tanımları
+6. **work_instructions** - İş talimatları
+7. **kpis** - KPI tanımları
+8. **performance_reviews** - Performans değerlendirmeleri
+9. **documents** - Doküman meta verileri
+10. **izin_turleri** - Şirket bazlı izin türü tanımları (kıdem/yaşa göre gün hakkı)
+11. **izin_talepleri** - Çalışan izin talepleri (oluşturma, onay, red)
+12. **izin_bakiyeleri** - Çalışan/izin türü/yıl bazlı izin bakiyesi
+
+Tüm tablolar `company_id` üzerinden şirkete bağlıdır ve RLS politikaları her
+şirketin yalnızca kendi verisini görmesini sağlar (bkz. Multi-Tenant Yapı).
 
 ## 🛠️ Teknoloji Stack
 
@@ -59,9 +67,15 @@ npm install
 
 1. [Supabase](https://supabase.com) hesabı oluşturun
 2. Yeni bir proje oluşturun
-3. SQL Editor'den aşağıdaki dosyaları sırayla çalıştırın:
-   - `database-schema.sql` - Tablo yapıları ve politikalar
-   - `database-seed.sql` - Örnek veriler
+3. SQL Editor'den `src/lib` içindeki aşağıdaki dosyaları SIRAYLA çalıştırın:
+   1. `database-schema.sql` - Temel tablo yapıları
+   2. `multi-tenant-schema.sql` - `companies` tablosu ve `company_id` altyapısı
+   3. `rls-policies.sql` - Rol ve şirket bazlı erişim politikaları
+   4. `leave-management-schema.sql` - İzin yönetimi tabloları ve hesaplama fonksiyonları
+   5. `leave-management-rls.sql` - İzin yönetimi erişim politikaları
+   6. `database-seed.sql` - Örnek veriler (opsiyonel)
+
+Her dosya tekrar tekrar çalıştırılabilir (idempotent) şekilde yazılmıştır.
 
 ### 3. Environment Variables
 
@@ -86,6 +100,36 @@ npm run dev
 ```
 
 Uygulama `http://localhost:5173` adresinde çalışacaktır.
+
+## 🏢 Multi-Tenant Yapı
+
+Sistem birden fazla şirketi tek bir Supabase projesinde izole şekilde
+barındırabilir. Her tablo bir `company_id` kolonu taşır ve RLS politikaları
+`get_user_company_id()` fonksiyonu üzerinden bir kullanıcının yalnızca kendi
+şirketinin verisini görebilmesini/değiştirebilmesini garanti eder. Yeni
+kurulumlarda `multi-tenant-schema.sql` mevcut/örnek veriyi otomatik olarak
+`Megabiz` adında varsayılan bir şirkete bağlar; ek şirketler `companies`
+tablosuna satır eklenerek tanımlanabilir.
+
+## 🗓️ İzin Yönetimi
+
+- **Çalışan tarafı**: "İzin Taleplerim" ekranından izin türü, tarih aralığı ve
+  açıklama girilerek talep oluşturulur; seçilen izin türünün kalan bakiyesi
+  formda anlık gösterilir.
+- **Yönetici/İK tarafı**: "İzin Onayları" ekranında (Departman Müdürü ve üstü
+  ile İK rolü görebilir) bekleyen talepler listelenir, onaylanabilir veya
+  gerekçe girilerek reddedilebilir.
+- **Yıllık izin hakkı hesaplaması** (`hesapla_yillik_izin_hakki` fonksiyonu),
+  4857 sayılı İş Kanunu md. 53 asgarilerini uygular:
+  - 1-5 yıl kıdem: 14 gün, 5-15 yıl: 20 gün, 15+ yıl: 26 gün
+  - 18 yaşından küçük veya 50 yaşından büyük çalışanlar için asgari 20 gün
+    (kıdem kademesinin üzerine çıkar, asla düşürmez)
+  - `izin_turleri` tablosundaki bu kademe değerleri **şirket bazlı** override
+    edilebilir; CHECK kısıtları override'ın kanuni asgarinin altına
+    düşürülmesini engeller, yalnızca üzerine çıkılmasına izin verir.
+- İzin bakiyeleri `izin_bakiyeleri` tablosunda çalışan/izin türü/yıl bazında
+  tutulur ve bir talep onaylandığında otomatik olarak güncellenir; yetersiz
+  bakiye durumunda onay işlemi veritabanı seviyesinde reddedilir.
 
 ## 🔐 Rol Hiyerarşisi
 

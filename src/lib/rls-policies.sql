@@ -1,7 +1,11 @@
 -- ========================================
 -- MEGABIZ - Row Level Security Policies
--- Rol bazlı erişim kontrol politikaları
+-- Rol ve şirket (multi-tenant) bazlı erişim kontrol politikaları
 -- ========================================
+-- Bu dosya database-schema.sql ve multi-tenant-schema.sql
+-- çalıştırıldıktan SONRA SQL Editor'de çalıştırılmalıdır.
+-- Tekrar tekrar çalıştırılabilir (idempotent): her politika önce
+-- DROP POLICY IF EXISTS ile silinip yeniden oluşturulur.
 
 -- RLS'yi tüm tablolar için aktif et
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -19,6 +23,7 @@ ALTER TABLE performance_reviews ENABLE ROW LEVEL SECURITY;
 -- ========================================
 -- HELPER FUNCTIONS
 -- ========================================
+-- get_user_company_id() ve get_user_employee_id(): multi-tenant-schema.sql içinde tanımlı.
 
 -- Kullanıcının rolünü döndür
 CREATE OR REPLACE FUNCTION get_user_role()
@@ -29,7 +34,7 @@ BEGIN
         WHERE id = auth.uid() AND is_active = TRUE
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
 
 -- Kullanıcının departman ID'sini döndür
 CREATE OR REPLACE FUNCTION get_user_department_id()
@@ -43,7 +48,7 @@ BEGIN
         LIMIT 1
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
 
 -- Kullanıcının yetki seviyesini döndür (yüksek sayı = yüksek yetki)
 CREATE OR REPLACE FUNCTION get_user_permission_level()
@@ -63,27 +68,32 @@ BEGIN
         ELSE 0
     END;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
 
 -- ========================================
 -- 1. PROFILES POLICIES
 -- ========================================
 
--- System Admin: tüm profilleri yönetir
+-- System Admin: kendi şirketindeki tüm profilleri yönetir
+DROP POLICY IF EXISTS profiles_admin_all ON profiles;
 CREATE POLICY profiles_admin_all ON profiles
-    FOR ALL USING (get_user_role() = 'system_admin');
+    FOR ALL USING (get_user_role() = 'system_admin' AND company_id = get_user_company_id());
 
--- HR: tüm profilleri okuyabilir, düzenleyebilir
+-- HR: kendi şirketindeki tüm profilleri okuyabilir, düzenleyebilir
+DROP POLICY IF EXISTS profiles_hr_read ON profiles;
 CREATE POLICY profiles_hr_read ON profiles
-    FOR SELECT USING (get_user_role() = 'human_resources');
+    FOR SELECT USING (get_user_role() = 'human_resources' AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS profiles_hr_update ON profiles;
 CREATE POLICY profiles_hr_update ON profiles
-    FOR UPDATE USING (get_user_role() = 'human_resources');
+    FOR UPDATE USING (get_user_role() = 'human_resources' AND company_id = get_user_company_id());
 
 -- Diğer roller: sadece kendi profillerini görebilir
+DROP POLICY IF EXISTS profiles_self_read ON profiles;
 CREATE POLICY profiles_self_read ON profiles
     FOR SELECT USING (id = auth.uid());
 
+DROP POLICY IF EXISTS profiles_self_update ON profiles;
 CREATE POLICY profiles_self_update ON profiles
     FOR UPDATE USING (id = auth.uid())
     WITH CHECK (id = auth.uid());
@@ -92,98 +102,121 @@ CREATE POLICY profiles_self_update ON profiles
 -- 2. DEPARTMENTS POLICIES
 -- ========================================
 
--- System Admin, YK Başkanı, Genel Müdür: tüm departmanlar
+-- System Admin, YK Başkanı, Genel Müdür: kendi şirketindeki tüm departmanlar
+DROP POLICY IF EXISTS departments_admin_all ON departments;
 CREATE POLICY departments_admin_all ON departments
-    FOR ALL USING (get_user_permission_level() >= 5);
+    FOR ALL USING (get_user_permission_level() >= 5 AND company_id = get_user_company_id());
 
--- GM Yardımcısı: tüm departmanları okuyabilir
+-- GM Yardımcısı: kendi şirketindeki tüm departmanları okuyabilir
+DROP POLICY IF EXISTS departments_deputy_read ON departments;
 CREATE POLICY departments_deputy_read ON departments
-    FOR SELECT USING (get_user_role() = 'deputy_general_manager');
+    FOR SELECT USING (get_user_role() = 'deputy_general_manager' AND company_id = get_user_company_id());
 
 -- Departman Müdürü: sadece kendi departmanı
+DROP POLICY IF EXISTS departments_manager_read ON departments;
 CREATE POLICY departments_manager_read ON departments
     FOR SELECT USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         id = get_user_department_id()
     );
 
+DROP POLICY IF EXISTS departments_manager_update ON departments;
 CREATE POLICY departments_manager_update ON departments
     FOR UPDATE USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         id = get_user_department_id()
     );
 
--- HR: tüm departmanları okuyabilir
+-- HR: kendi şirketindeki tüm departmanları okuyabilir
+DROP POLICY IF EXISTS departments_hr_all ON departments;
 CREATE POLICY departments_hr_all ON departments
-    FOR ALL USING (get_user_role() = 'human_resources');
+    FOR ALL USING (get_user_role() = 'human_resources' AND company_id = get_user_company_id());
 
--- Çalışan: aktif departmanları okuyabilir
+-- Çalışan: kendi şirketindeki aktif departmanları okuyabilir
+DROP POLICY IF EXISTS departments_employee_read ON departments;
 CREATE POLICY departments_employee_read ON departments
     FOR SELECT USING (
-        get_user_permission_level() >= 1 AND is_active = TRUE
+        get_user_permission_level() >= 1 AND is_active = TRUE AND company_id = get_user_company_id()
     );
 
 -- ========================================
 -- 3. POSITIONS POLICIES
 -- ========================================
 
--- System Admin, YK Başkanı, Genel Müdür, GM Yardımcısı: tüm pozisyonlar
+-- System Admin, YK Başkanı, Genel Müdür, GM Yardımcısı: kendi şirketindeki tüm pozisyonlar
+DROP POLICY IF EXISTS positions_admin_all ON positions;
 CREATE POLICY positions_admin_all ON positions
-    FOR ALL USING (get_user_permission_level() >= 4);
+    FOR ALL USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
--- HR: tüm pozisyonları yönetebilir
+-- HR: kendi şirketindeki tüm pozisyonları yönetebilir
+DROP POLICY IF EXISTS positions_hr_all ON positions;
 CREATE POLICY positions_hr_all ON positions
-    FOR ALL USING (get_user_role() = 'human_resources');
+    FOR ALL USING (get_user_role() = 'human_resources' AND company_id = get_user_company_id());
 
 -- Departman Müdürü: kendi departmanının pozisyonları
+DROP POLICY IF EXISTS positions_manager_read ON positions;
 CREATE POLICY positions_manager_read ON positions
     FOR SELECT USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
+DROP POLICY IF EXISTS positions_manager_write ON positions;
 CREATE POLICY positions_manager_write ON positions
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
--- Çalışan: aktif pozisyonları okuyabilir
+-- Çalışan: kendi şirketindeki aktif pozisyonları okuyabilir
+DROP POLICY IF EXISTS positions_employee_read ON positions;
 CREATE POLICY positions_employee_read ON positions
     FOR SELECT USING (
-        get_user_permission_level() >= 1 AND is_active = TRUE
+        get_user_permission_level() >= 1 AND is_active = TRUE AND company_id = get_user_company_id()
     );
 
 -- ========================================
 -- 4. EMPLOYEES POLICIES
 -- ========================================
 
--- System Admin: tüm çalışanları yönetir
+-- System Admin: kendi şirketindeki tüm çalışanları yönetir
+DROP POLICY IF EXISTS employees_admin_all ON employees;
 CREATE POLICY employees_admin_all ON employees
-    FOR ALL USING (get_user_role() = 'system_admin');
+    FOR ALL USING (get_user_role() = 'system_admin' AND company_id = get_user_company_id());
 
--- YK Başkanı, Genel Müdür, GM Yardımcısı: tüm çalışanları okuyabilir
+-- YK Başkanı, Genel Müdür, GM Yardımcısı: kendi şirketindeki tüm çalışanları okuyabilir
+DROP POLICY IF EXISTS employees_management_read ON employees;
 CREATE POLICY employees_management_read ON employees
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
--- HR: tüm çalışanları yönetebilir
+-- HR: kendi şirketindeki tüm çalışanları yönetebilir
+DROP POLICY IF EXISTS employees_hr_all ON employees;
 CREATE POLICY employees_hr_all ON employees
-    FOR ALL USING (get_user_role() = 'human_resources');
+    FOR ALL USING (get_user_role() = 'human_resources' AND company_id = get_user_company_id());
 
 -- Departman Müdürü: sadece kendi departmanının çalışanları
+DROP POLICY IF EXISTS employees_manager_read ON employees;
 CREATE POLICY employees_manager_read ON employees
     FOR SELECT USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
+DROP POLICY IF EXISTS employees_manager_update ON employees;
 CREATE POLICY employees_manager_update ON employees
     FOR UPDATE USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
 -- Çalışan: sadece kendi bilgisi
+DROP POLICY IF EXISTS employees_self_read ON employees;
 CREATE POLICY employees_self_read ON employees
     FOR SELECT USING (
         id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
@@ -193,35 +226,40 @@ CREATE POLICY employees_self_read ON employees
 -- 5. JOB DESCRIPTIONS POLICIES
 -- ========================================
 
--- System Admin, HR: tüm görev tanımlarını yönetir
+DROP POLICY IF EXISTS jd_admin_all ON job_descriptions;
 CREATE POLICY jd_admin_all ON job_descriptions
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
--- YK Başkanı, Genel Müdür, GM Yardımcısı: tüm görev tanımlarını okuyabilir
+DROP POLICY IF EXISTS jd_management_read ON job_descriptions;
 CREATE POLICY jd_management_read ON job_descriptions
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
--- Departman Müdürü: kendi departmanının görev tanımları
+DROP POLICY IF EXISTS jd_manager_read ON job_descriptions;
 CREATE POLICY jd_manager_read ON job_descriptions
     FOR SELECT USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         position_id IN (
             SELECT id FROM positions WHERE department_id = get_user_department_id()
         )
     );
 
+DROP POLICY IF EXISTS jd_manager_write ON job_descriptions;
 CREATE POLICY jd_manager_write ON job_descriptions
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         position_id IN (
             SELECT id FROM positions WHERE department_id = get_user_department_id()
         )
     );
 
 -- Çalışan: kendi pozisyonunun görev tanımı
+DROP POLICY IF EXISTS jd_employee_read ON job_descriptions;
 CREATE POLICY jd_employee_read ON job_descriptions
     FOR SELECT USING (
         get_user_permission_level() >= 1 AND
+        company_id = get_user_company_id() AND
         position_id IN (
             SELECT position_id FROM employees
             WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
@@ -232,21 +270,27 @@ CREATE POLICY jd_employee_read ON job_descriptions
 -- 6. WORK INSTRUCTIONS POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS wi_admin_all ON work_instructions;
 CREATE POLICY wi_admin_all ON work_instructions
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS wi_management_read ON work_instructions;
 CREATE POLICY wi_management_read ON work_instructions
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS wi_manager_all ON work_instructions;
 CREATE POLICY wi_manager_all ON work_instructions
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
+DROP POLICY IF EXISTS wi_employee_read ON work_instructions;
 CREATE POLICY wi_employee_read ON work_instructions
     FOR SELECT USING (
-        get_user_permission_level() >= 1 AND (
+        get_user_permission_level() >= 1 AND
+        company_id = get_user_company_id() AND (
             department_id = get_user_department_id()
             OR status = 'approved'
         )
@@ -256,15 +300,19 @@ CREATE POLICY wi_employee_read ON work_instructions
 -- 7. PROCEDURES POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS procedures_admin_all ON procedures;
 CREATE POLICY procedures_admin_all ON procedures
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS procedures_management_read ON procedures;
 CREATE POLICY procedures_management_read ON procedures
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS procedures_employee_read ON procedures;
 CREATE POLICY procedures_employee_read ON procedures
     FOR SELECT USING (
         get_user_permission_level() >= 1 AND
+        company_id = get_user_company_id() AND
         work_instruction_id IN (
             SELECT id FROM work_instructions
             WHERE department_id = get_user_department_id() OR status = 'approved'
@@ -275,67 +323,83 @@ CREATE POLICY procedures_employee_read ON procedures
 -- 8. DOCUMENTS POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS documents_admin_all ON documents;
 CREATE POLICY documents_admin_all ON documents
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS documents_management_read ON documents;
 CREATE POLICY documents_management_read ON documents
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS documents_management_write ON documents;
 CREATE POLICY documents_management_write ON documents
-    FOR ALL USING (get_user_permission_level() >= 4);
+    FOR ALL USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
 -- Departman Müdürü: kendi departmanının dokümanları
+DROP POLICY IF EXISTS documents_manager_all ON documents;
 CREATE POLICY documents_manager_all ON documents
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         (department_id = get_user_department_id() OR department_id IS NULL)
     );
 
 -- Çalışan: kendi departmanının ve onaylı genel dokümanlar
+DROP POLICY IF EXISTS documents_employee_read ON documents;
 CREATE POLICY documents_employee_read ON documents
     FOR SELECT USING (
-        get_user_permission_level() >= 1 AND (
+        get_user_permission_level() >= 1 AND
+        company_id = get_user_company_id() AND (
             department_id = get_user_department_id()
             OR status IN ('approved', 'published')
         )
     );
 
+DROP POLICY IF EXISTS documents_employee_write ON documents;
 CREATE POLICY documents_employee_write ON documents
-    FOR INSERT WITH CHECK (get_user_permission_level() >= 1)
-    WITH CHECK (get_user_permission_level() >= 1);
+    FOR INSERT WITH CHECK (get_user_permission_level() >= 1 AND company_id = get_user_company_id());
 
 -- ========================================
 -- 9. TASKS POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS tasks_admin_all ON tasks;
 CREATE POLICY tasks_admin_all ON tasks
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS tasks_management_all ON tasks;
 CREATE POLICY tasks_management_all ON tasks
-    FOR ALL USING (get_user_permission_level() >= 4);
+    FOR ALL USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
 -- Departman Müdürü: kendi departmanının görevleri
+DROP POLICY IF EXISTS tasks_manager_all ON tasks;
 CREATE POLICY tasks_manager_all ON tasks
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         (department_id = get_user_department_id() OR department_id IS NULL)
     );
 
 -- Çalışan: kendi görevleri
+DROP POLICY IF EXISTS tasks_employee_read ON tasks;
 CREATE POLICY tasks_employee_read ON tasks
     FOR SELECT USING (
-        assigned_employee_id IN (
-            SELECT id FROM employees
-            WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
-        )
-        OR assigned_position_id IN (
-            SELECT position_id FROM employees
-            WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
+        company_id = get_user_company_id() AND (
+            assigned_employee_id IN (
+                SELECT id FROM employees
+                WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
+            )
+            OR assigned_position_id IN (
+                SELECT position_id FROM employees
+                WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
+            )
         )
     );
 
+DROP POLICY IF EXISTS tasks_employee_update ON tasks;
 CREATE POLICY tasks_employee_update ON tasks
     FOR UPDATE USING (
+        company_id = get_user_company_id() AND
         assigned_employee_id IN (
             SELECT id FROM employees
             WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
@@ -346,22 +410,28 @@ CREATE POLICY tasks_employee_update ON tasks
 -- 10. KPIs POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS kpis_admin_all ON kpis;
 CREATE POLICY kpis_admin_all ON kpis
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS kpis_management_read ON kpis;
 CREATE POLICY kpis_management_read ON kpis
-    FOR SELECT USING (get_user_permission_level() >= 4);
+    FOR SELECT USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS kpis_manager_all ON kpis;
 CREATE POLICY kpis_manager_all ON kpis
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         department_id = get_user_department_id()
     );
 
 -- Çalışan: kendi pozisyonunun KPI'ları
+DROP POLICY IF EXISTS kpis_employee_read ON kpis;
 CREATE POLICY kpis_employee_read ON kpis
     FOR SELECT USING (
         get_user_permission_level() >= 1 AND
+        company_id = get_user_company_id() AND
         position_id IN (
             SELECT position_id FROM employees
             WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())
@@ -372,24 +442,30 @@ CREATE POLICY kpis_employee_read ON kpis
 -- 11. PERFORMANCE REVIEWS POLICIES
 -- ========================================
 
+DROP POLICY IF EXISTS perf_admin_all ON performance_reviews;
 CREATE POLICY perf_admin_all ON performance_reviews
-    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources'));
+    FOR ALL USING (get_user_role() IN ('system_admin', 'human_resources') AND company_id = get_user_company_id());
 
+DROP POLICY IF EXISTS perf_management_all ON performance_reviews;
 CREATE POLICY perf_management_all ON performance_reviews
-    FOR ALL USING (get_user_permission_level() >= 4);
+    FOR ALL USING (get_user_permission_level() >= 4 AND company_id = get_user_company_id());
 
 -- Departman Müdürü: kendi departmanının değerlendirmeleri
+DROP POLICY IF EXISTS perf_manager_all ON performance_reviews;
 CREATE POLICY perf_manager_all ON performance_reviews
     FOR ALL USING (
         get_user_role() = 'department_manager' AND
+        company_id = get_user_company_id() AND
         employee_id IN (
             SELECT id FROM employees WHERE department_id = get_user_department_id()
         )
     );
 
 -- Çalışan: kendi değerlendirmeleri
+DROP POLICY IF EXISTS perf_employee_read ON performance_reviews;
 CREATE POLICY perf_employee_read ON performance_reviews
     FOR SELECT USING (
+        company_id = get_user_company_id() AND
         employee_id IN (
             SELECT id FROM employees
             WHERE id IN (SELECT employee_id FROM profiles WHERE id = auth.uid())

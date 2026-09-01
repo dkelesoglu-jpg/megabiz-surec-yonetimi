@@ -174,3 +174,18 @@ INSERT INTO kpis (id, title, position_id, department_id, description, unit, targ
     ('kpi-001', 'Yıllık Satış Hedefi', 'pos-satis-mudur', 'dep-satis', 'Yıllık satış gelir hedefine ulaşma oranı', 'percentage', 100.00, 3.0, 'monthly', 'active'),
     ('kpi-002', 'Mali Raporlama Zamanında Teslim', 'pos-mali-mudur', 'dep-mali-isler', 'Aylık mali raporların zamanında hazırlanma oranı', 'percentage', 100.00, 2.5, 'monthly', 'active'),
     ('kpi-003', 'Müşteri Memnuniyet Skoru', 'pos-satis-uzman', 'dep-satis', 'Müşteri memnuniyet anketi ortalama puanı', 'score', 85.00, 2.0, 'quarterly', 'active');
+
+-- ========================================
+-- 12. İZİN TÜRLERİ (Varsayılan izin türleri)
+-- ========================================
+-- multi-tenant-schema.sql, database-schema.sql'in ilk kez çalıştırıldığı anda
+-- mevcut veriyi kodu 'MEGABIZ' olan tek bir varsayılan şirkete bağlar; bu
+-- şirketin ID'si burada alt sorgu ile referanslanır. leave-management-schema.sql
+-- ve leave-management-rls.sql bu INSERT'ten ÖNCE çalıştırılmış olmalıdır.
+INSERT INTO izin_turleri (company_id, ad, kod, aciklama, kidem_bazli_hesaplama, sabit_gun_sayisi, yillik_devir_hakki, bakiye_takipli) VALUES
+    ((SELECT id FROM companies WHERE code = 'MEGABIZ'), 'Yıllık Ücretli İzin', 'yillik_izin',
+     'Kıdem yılına göre hesaplanan kanuni yıllık ücretli izin (4857 sayılı İş Kanunu md. 53).', TRUE, NULL, TRUE, TRUE),
+    ((SELECT id FROM companies WHERE code = 'MEGABIZ'), 'Mazeret İzni', 'mazeret_izni',
+     'Evlilik, doğum, vefat gibi mazeretler için kullanılan ücretli izin.', FALSE, 3, FALSE, TRUE),
+    ((SELECT id FROM companies WHERE code = 'MEGABIZ'), 'Ücretsiz İzin', 'ucretsiz_izin',
+     'Bakiye takibi yapılmayan, yönetici onayına bağlı ücretsiz izin.', FALSE, 0, FALSE, FALSE);

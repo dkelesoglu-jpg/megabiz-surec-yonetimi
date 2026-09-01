@@ -28,6 +28,17 @@ export type ReviewStatus = 'pending' | 'in_progress' | 'completed' | 'approved';
 export type FrequencyType = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly' | 'as_needed';
 export type KPIFrequency = 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 export type KPIStatus = 'active' | 'inactive' | 'archived';
+export type LeaveRequestStatus = 'beklemede' | 'onaylandi' | 'reddedildi' | 'iptal_edildi';
+
+export interface Company {
+    id: string;
+    name: string;
+    code: string;
+    tax_number: string | null;
+    is_active: boolean;
+    created_at: string;
+    updated_at: string;
+}
 
 export interface Profile {
     id: string;
@@ -35,12 +46,14 @@ export interface Profile {
     email: string;
     role: UserRole;
     employee_id: string | null;
+    company_id: string;
     is_active: boolean;
     created_at: string;
 }
 
 export interface Department {
     id: string;
+    company_id: string;
     name: string;
     code: string;
     description: string | null;
@@ -52,6 +65,7 @@ export interface Department {
 
 export interface Position {
     id: string;
+    company_id: string;
     title: string;
     code: string;
     department_id: string;
@@ -70,6 +84,7 @@ export interface Position {
 
 export interface Employee {
     id: string;
+    company_id: string;
     full_name: string;
     email: string;
     phone: string | null;
@@ -77,6 +92,7 @@ export interface Employee {
     position_id: string | null;
     employment_status: EmploymentStatus;
     start_date: string;
+    birth_date: string | null;
     created_at: string;
     updated_at: string;
     department?: Department;
@@ -85,6 +101,7 @@ export interface Employee {
 
 export interface JobDescription {
     id: string;
+    company_id: string;
     position_id: string;
     document_number: string;
     revision_number: string;
@@ -103,6 +120,7 @@ export interface JobDescription {
 
 export interface WorkInstruction {
     id: string;
+    company_id: string;
     department_id: string;
     position_id: string | null;
     title: string;
@@ -122,6 +140,7 @@ export interface WorkInstruction {
 
 export interface Procedure {
     id: string;
+    company_id: string;
     work_instruction_id: string;
     procedure_code: string;
     title: string;
@@ -141,6 +160,7 @@ export interface Procedure {
 
 export interface Document {
     id: string;
+    company_id: string;
     title: string;
     document_type: DocumentType;
     department_id: string | null;
@@ -161,6 +181,7 @@ export interface Document {
 
 export interface Task {
     id: string;
+    company_id: string;
     title: string;
     description: string | null;
     assigned_employee_id: string | null;
@@ -180,6 +201,7 @@ export interface Task {
 
 export interface KPI {
     id: string;
+    company_id: string;
     title: string;
     position_id: string;
     department_id: string;
@@ -197,6 +219,7 @@ export interface KPI {
 
 export interface PerformanceReview {
     id: string;
+    company_id: string;
     employee_id: string;
     period: string;
     evaluator_id: string | null;
@@ -217,6 +240,64 @@ export interface DashboardStats {
     overdue_tasks: number;
     pending_approval_documents: number;
     upcoming_revisions: number;
+}
+
+// ========================================
+// LEAVE MANAGEMENT (İzin Yönetimi)
+// ========================================
+
+export interface LeaveType {
+    id: string;
+    company_id: string;
+    ad: string;
+    kod: string;
+    aciklama: string | null;
+    kidem_bazli_hesaplama: boolean;
+    kidem_1_5_yil_gun: number;
+    kidem_5_15_yil_gun: number;
+    kidem_15_yil_uzeri_gun: number;
+    yas_istisna_min_gun: number;
+    sabit_gun_sayisi: number | null;
+    yillik_devir_hakki: boolean;
+    bakiye_takipli: boolean;
+    aktif: boolean;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface LeaveRequest {
+    id: string;
+    company_id: string;
+    employee_id: string;
+    izin_turu_id: string;
+    baslangic_tarihi: string;
+    bitis_tarihi: string;
+    gun_sayisi: number;
+    aciklama: string | null;
+    durum: LeaveRequestStatus;
+    onaylayan_id: string | null;
+    onay_tarihi: string | null;
+    red_nedeni: string | null;
+    created_at: string;
+    updated_at: string;
+    employee?: Employee;
+    izin_turu?: LeaveType;
+    onaylayan?: Employee;
+}
+
+export interface LeaveBalance {
+    id: string;
+    company_id: string;
+    employee_id: string;
+    izin_turu_id: string;
+    yil: number;
+    hak_edilen_gun: number;
+    devreden_gun: number;
+    kullanilan_gun: number;
+    kalan_gun: number;
+    created_at: string;
+    updated_at: string;
+    izin_turu?: LeaveType;
 }
 
 // ========================================
