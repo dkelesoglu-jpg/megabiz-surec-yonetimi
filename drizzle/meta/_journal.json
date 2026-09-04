@@ -1,0 +1,244 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1787436460520,
+      "tag": "0000_perfect_iron_lad",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1787437269832,
+      "tag": "0001_round_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787437735803,
+      "tag": "0002_peaceful_siren",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787438942283,
+      "tag": "0003_worthless_bloodstorm",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1787440949976,
+      "tag": "0004_fancy_dexter_bennett",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1787441787755,
+      "tag": "0005_left_miek",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787442350248,
+      "tag": "0006_common_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787442672472,
+      "tag": "0007_curious_vance_astro",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1787443640475,
+      "tag": "0008_wakeful_caretaker",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1787444392941,
+      "tag": "0009_loose_toad",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1787445731831,
+      "tag": "0010_narrow_joystick",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1787447264942,
+      "tag": "0011_amusing_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1787476658764,
+      "tag": "0012_chemical_mockingbird",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1787481875326,
+      "tag": "0013_fat_cyclops",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1787486323881,
+      "tag": "0014_useful_mandroid",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1787491069386,
+      "tag": "0015_eager_scalphunter",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1787514243907,
+      "tag": "0016_bouncy_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1787525804515,
+      "tag": "0017_thankful_the_twelve",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1787527854191,
+      "tag": "0018_rich_malice",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1787531445496,
+      "tag": "0019_lucky_the_professor",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1787563964593,
+      "tag": "0020_lying_doctor_faustus",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1787568922334,
+      "tag": "0021_panoramic_ultimo",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1787611499796,
+      "tag": "0022_curved_maelstrom",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1787908709097,
+      "tag": "0023_easy_namor",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1787912320014,
+      "tag": "0024_old_mentallo",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1787923656221,
+      "tag": "0025_remove_demo_employees",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1787945477192,
+      "tag": "0026_amused_prism",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1787947724113,
+      "tag": "0027_fix_current_salary_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1787949000000,
+      "tag": "0028_payroll_report_engine",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "6",
+      "when": 1787953000000,
+      "tag": "0029_fix_2026_payroll_brackets",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "6",
+      "when": 1787993000000,
+      "tag": "0030_employee_benefits_assets_cost",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "6",
+      "when": 1788050000000,
+      "tag": "0031_number_series",
+      "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "6",
+      "when": 1788055000000,
+      "tag": "0032_organization_hierarchy_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "6",
+      "when": 1788060000000,
+      "tag": "0033_annual_budget_planning",
+      "breakpoints": true
+    }
+  ]
+}

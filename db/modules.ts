@@ -1,0 +1,1 @@
+export const moduleList=["Genel Bakış","Organizasyon","Personel","Performans","KPI & Hedefler","İş Analizleri","Görev Tanımları","İş Talimatları","İzin & Devam","Eğitim & Oryantasyon","Zimmet Yönetimi","Belge / Evrak Takibi","Raporlar","Yasal Haklar","Bordro Detayları","Ücret / Maliyet / Bütçe","Borç & Avans"];

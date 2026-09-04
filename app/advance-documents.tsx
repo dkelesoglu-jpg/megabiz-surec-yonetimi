@@ -1,0 +1,14 @@
+"use client";
+import {FormEvent,useEffect,useState} from "react";
+
+type Doc={id:number;name:string;size:number;category:string;relatedType:string;relatedId:string;documentDate?:string;uploadedBy:string;createdAt:string};
+const categories=["Avans Talep Formu","Borç Sözleşmesi","Çalışan Onayı","Yönetici Onayı","Banka Dekontu","Ödeme Makbuzu","Tahsilat Belgesi","Diğer"];
+
+export default function AdvanceDocuments({requestId,employeeId}:{requestId:number;employeeId:number}){
+ const[docs,setDocs]=useState<Doc[]>([]),[busy,setBusy]=useState(false),[message,setMessage]=useState("");
+ async function load(){const r=await fetch("/api/documents"),j=await r.json();if(r.ok)setDocs((j.documents||[]).filter((x:Doc)=>x.relatedType===`advance:${requestId}`));else setMessage(j.error||"Belgeler alınamadı")}
+ useEffect(()=>{load()},[requestId]);
+ async function upload(e:FormEvent<HTMLFormElement>){e.preventDefault();setBusy(true);const f=new FormData(e.currentTarget);f.set("relatedType",`advance:${requestId}`);f.set("relatedId",String(employeeId));const r=await fetch("/api/documents",{method:"POST",body:f}),j=await r.json();if(r.ok){setMessage("Belge borç/avans kaydına ve personel dosyasına eklendi.");e.currentTarget.reset();await load()}else setMessage(j.error||"Belge yüklenemedi");setBusy(false)}
+ async function remove(d:Doc){if(!confirm(`“${d.name}” belgesi silinsin mi?`))return;const r=await fetch(`/api/documents?id=${d.id}`,{method:"DELETE"});if(r.ok){setMessage("Belge silindi.");await load()}}
+ return <div className="advance-documents"><div className="advance-doc-head"><div><h3>Belge Yönetimi</h3><p>Talep, sözleşme, onay, dekont ve tahsilat belgeleri</p></div><span>{docs.length} belge</span></div><form onSubmit={upload}><label className="advance-doc-file"><b>Dosya seçin veya telefonla tarayın</b><input name="file" type="file" required accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg" capture="environment"/><small>PDF, Office veya görsel · en fazla 10 MB</small></label><label><span>Belge Türü</span><select name="category">{categories.map(x=><option key={x}>{x}</option>)}</select></label><label><span>Belge Tarihi</span><input name="documentDate" type="date" defaultValue={new Date().toISOString().slice(0,10)}/></label><button disabled={busy}>{busy?"Yükleniyor…":"⇧ Belgeyi Yükle"}</button></form>{message&&<p className="advance-doc-notice">{message}</p>}<div className="advance-doc-list">{docs.length?docs.map(d=><article key={d.id}><i>{d.name.toLowerCase().endsWith(".pdf")?"PDF":"DOS"}</i><div><b>{d.name}</b><small>{d.category} · {Math.max(1,Math.ceil(d.size/1024))} KB · {new Date(d.createdAt).toLocaleDateString("tr-TR")}</small></div><a href={`/api/documents?download=${d.id}`}>İndir</a><button onClick={()=>remove(d)}>Sil</button></article>):<p>Bu kayda henüz belge eklenmedi.</p>}</div></div>
+}

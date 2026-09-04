@@ -1,0 +1,1 @@
+ALTER TABLE `performance_assignments` ADD `potential_score` integer DEFAULT 50 NOT NULL;
