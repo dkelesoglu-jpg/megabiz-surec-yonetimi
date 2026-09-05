@@ -1,5 +1,6 @@
 import { getDb } from "../../../db";
 import { getAuthenticatedIdentity } from "../../../db/supabase";
+import { defaultPlatformRole } from "../../../db/role-assignment";
 
 export const dynamic = "force-dynamic";
 
@@ -21,23 +22,13 @@ export async function GET(request: Request) {
   let { data: user } = await db.from("app_users").select("*").eq("email", who.email).maybeSingle();
 
   if (!user) {
-    const { count } = await db.from("app_users").select("*", { count: "exact", head: true });
-    const role = (count ?? 0) === 0 ? "super_admin" : "user";
+    const role = defaultPlatformRole();
     const { data: inserted } = await db
       .from("app_users")
       .insert({ email: who.email, full_name: who.fullName ?? who.email, platform_role: role, created_at: now })
       .select()
       .single();
     user = inserted;
-    if (role === "super_admin") {
-      await db.from("company_memberships").upsert(
-        [
-          { company_id: "megabiz", user_email: who.email, role: "company_admin", created_at: now },
-          { company_id: "mega-global-energy", user_email: who.email, role: "company_admin", created_at: now },
-        ],
-        { onConflict: "company_id,user_email", ignoreDuplicates: true },
-      );
-    }
   }
 
   let companiesList: Array<{ id: string; name: string; sector: string | null; status: string; created_at: string }>;

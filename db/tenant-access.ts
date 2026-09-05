@@ -74,6 +74,7 @@ export function accessStatusForErrorMessage(message: string): number {
   if (
     message.includes("ACCESS") ||
     message.includes("MEMBERSHIP") ||
+    message.includes("DENIED") ||
     message.includes("DISABLED") ||
     message.includes("LICENSED")
   ) {

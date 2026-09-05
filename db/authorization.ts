@@ -23,41 +23,6 @@ async function identity(request: Request): Promise<AuthenticatedIdentity> {
   return who ?? { email: "", fullName: null };
 }
 
-async function bootstrapOwner(email: string, fullName: string | null) {
-  const db = getDb();
-  const now = new Date().toISOString();
-
-  const { count, error: countError } = await db
-    .from("app_users")
-    .select("*", { count: "exact", head: true });
-  if (countError) throw countError;
-  if ((count ?? 0) > 0) return null;
-
-  await db.from("companies").upsert(
-    [
-      { id: "megabiz", name: "Megabiz", sector: "Teknoloji", created_at: now },
-      { id: "mega-global-energy", name: "Mega Global Energy", sector: "Enerji", created_at: now },
-    ],
-    { onConflict: "id", ignoreDuplicates: true },
-  );
-
-  const { data: user, error: userError } = await db
-    .from("app_users")
-    .insert({ email, full_name: fullName, platform_role: "super_admin", created_at: now })
-    .select()
-    .single();
-  if (userError) throw userError;
-
-  await db.from("company_memberships").upsert(
-    [
-      { company_id: "megabiz", user_email: email, role: "company_admin", created_at: now },
-      { company_id: "mega-global-energy", user_email: email, role: "company_admin", created_at: now },
-    ],
-    { onConflict: "company_id,user_email", ignoreDuplicates: true },
-  );
-  return user;
-}
-
 export async function requireAccess(
   request: Request,
   companyId: string,
@@ -68,10 +33,6 @@ export async function requireAccess(
   const db = getDb();
 
   let { data: user } = await db.from("app_users").select("*").eq("email", who.email).maybeSingle();
-
-  if (!user) {
-    user = await bootstrapOwner(who.email, who.fullName);
-  }
 
   if (!user) {
     const now = new Date().toISOString();
