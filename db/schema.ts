@@ -345,6 +345,7 @@ export const companyMemberships = sqliteTable(
     companyId: text("company_id").notNull(),
     userEmail: text("user_email").notNull(),
     role: text("role").notNull(),
+    status: text("status").notNull().default("Aktif"),
     createdAt: text("created_at").notNull(),
   },
   (t) => [

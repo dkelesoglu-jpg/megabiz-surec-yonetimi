@@ -1,5 +1,6 @@
 import { getDb } from ".";
 import { getAuthenticatedIdentity, type AuthenticatedIdentity } from "./supabase";
+import { accessStatusForErrorMessage, loadTenantMembershipRole } from "./tenant-access";
 
 export type Access = {
   email: string;
@@ -95,38 +96,8 @@ export async function requireAccess(
     return { ...who, email: who.email, role: "super_admin", companyId };
   }
 
-  let { data: membership } = await db
-    .from("company_memberships")
-    .select("*")
-    .eq("company_id", companyId)
-    .eq("user_email", who.email)
-    .maybeSingle();
-
-  if (!membership) {
-    const now = new Date().toISOString();
-    const { data: inserted } = await db
-      .from("company_memberships")
-      .upsert(
-        { company_id: companyId, user_email: who.email, role: "hr", created_at: now },
-        { onConflict: "company_id,user_email", ignoreDuplicates: true },
-      )
-      .select()
-      .maybeSingle();
-    membership =
-      inserted ??
-      (
-        await db
-          .from("company_memberships")
-          .select("*")
-          .eq("company_id", companyId)
-          .eq("user_email", who.email)
-          .maybeSingle()
-      ).data;
-  }
-
-  if (!membership) throw new Error("COMPANY_ACCESS_DENIED");
-
-  const access: Access = { ...who, email: who.email, role: membership.role, companyId };
+  const role = await loadTenantMembershipRole(db, companyId, who.email);
+  const access: Access = { ...who, email: who.email, role, companyId };
   const path = new URL(request.url).pathname;
 
   if (path.includes("/api/employees")) await requireModuleAccess(access, "Personel", write);
@@ -218,14 +189,7 @@ export async function writeAudit(
 
 export function accessError(error: unknown) {
   const m = error instanceof Error ? error.message : "UNKNOWN";
-  const status =
-    m === "AUTH_REQUIRED"
-      ? 401
-      : m.includes("ACCESS") || m.includes("MEMBERSHIP") || m.includes("DISABLED") || m.includes("LICENSED")
-        ? 403
-        : m === "ADVANCE_INVALID_STATE"
-          ? 409
-          : 500;
+  const status = accessStatusForErrorMessage(m);
   return Response.json(
     { error: m === "ADVANCE_INVALID_STATE" ? "Bu işlem kaydın mevcut durumunda yapılamaz" : m },
     { status },
