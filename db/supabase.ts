@@ -1,6 +1,9 @@
 import { env } from "cloudflare:workers";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerClient } from "@supabase/ssr";
+import { getSupabaseIdentity, type AuthenticatedIdentity } from "./auth-identity";
+
+export type { AuthenticatedIdentity } from "./auth-identity";
 
 type WorkerEnv = {
   SUPABASE_URL?: string;
@@ -76,45 +79,13 @@ export function getRequestAuthClient(request: Request) {
   });
 }
 
-export type AuthenticatedIdentity = { email: string; fullName: string | null };
-
-function getPlatformIdentity(request: Request): AuthenticatedIdentity | null {
-  const email = request.headers.get("oai-authenticated-user-email")?.trim().toLowerCase();
-  if (!email) return null;
-
-  const encodedFullName = request.headers.get("oai-authenticated-user-full-name");
-  let fullName: string | null = null;
-  if (
-    encodedFullName &&
-    request.headers.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-  ) {
-    try {
-      fullName = decodeURIComponent(encodedFullName);
-    } catch {
-      fullName = null;
-    }
-  }
-
-  return { email, fullName };
-}
-
 /**
  * İsteğin Supabase Auth çerezinden doğrulanmış kullanıcıyı döndürür.
- * Önceki ChatGPT header tabanlı identity() fonksiyonunun yerini alır.
+ * Platform header'ları API kimliği olarak kabul edilmez.
  */
 export async function getAuthenticatedIdentity(
   request: Request,
 ): Promise<AuthenticatedIdentity | null> {
   const supabase = getRequestAuthClient(request);
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
-  if (error || !user || !user.email) return getPlatformIdentity(request);
-  const fullName =
-    (user.user_metadata?.full_name as string | undefined) ||
-    (user.user_metadata?.fullName as string | undefined) ||
-    null;
-  return { email: user.email.trim().toLowerCase(), fullName };
+  return getSupabaseIdentity(supabase.auth, request);
 }

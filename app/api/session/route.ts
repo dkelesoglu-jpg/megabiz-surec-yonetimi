@@ -1,12 +1,13 @@
 import { getDb } from "../../../db";
 import { getAuthenticatedIdentity } from "../../../db/supabase";
 import { defaultPlatformRole } from "../../../db/role-assignment";
+import { sessionUnauthorizedResponse } from "./session-response";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const who = await getAuthenticatedIdentity(request);
-  if (!who) return Response.json({ error: "AUTH_REQUIRED" }, { status: 401 });
+  if (!who) return sessionUnauthorizedResponse();
 
   const db = getDb();
   const now = new Date().toISOString();
