@@ -16,6 +16,7 @@ import {
   type PayrollType,
 } from "../../../db/payroll-calculations";
 import { camelizeKeys } from "../../../db/case";
+import { FINANCIAL_ASSET_COLUMNS, FINANCIAL_BENEFIT_COLUMNS, FINANCIAL_EMPLOYEE_COLUMNS, FINANCIAL_HISTORY_COLUMNS, FINANCIAL_PARAMETER_COLUMNS, PAYROLL_MODULE, assertFinancialReportRole, scopeFinancialEmployees, scopeFinancialRows } from "../../../db/financial-access";
 
 const payrollTypes: PayrollType[] = ["Normal Personel", "Emekli Personel", "Huzur Hakkı"];
 const money = (value: number) => Math.round(value * 100) / 100;
@@ -32,8 +33,8 @@ function automaticPayrollType(employeeType: string): PayrollType {
 export async function GET(request: Request) {
   try {
     const companyId = getCompanyId(request), access = await requireAccess(request, companyId);
-    await requireModuleAccess(access, "Bordro Detayları");
-    if (access.role === "employee") throw new Error("MODULE_ACCESS_DENIED");
+    await requireModuleAccess(access, PAYROLL_MODULE);
+    assertFinancialReportRole(access.role);
     const url = new URL(request.url),
       period = url.searchParams.get("period") || new Date().toISOString().slice(0, 7),
       from = `${period}-01`,
@@ -45,17 +46,17 @@ export async function GET(request: Request) {
       status = url.searchParams.get("status") || "";
     const db = getDb();
     const [staffRes, benRes, assetRes, histRes, paramRes, companyRes] = await Promise.all([
-      db.from("employees").select("*").eq("company_id", companyId).order("first_name", { ascending: true }),
-      db.from("employee_benefits").select("*").eq("company_id", companyId),
-      db.from("assets").select("*").eq("company_id", companyId),
-      db.from("employee_cost_histories").select("*").eq("company_id", companyId),
-      db.from("payroll_legal_parameters").select("*").eq("company_id", companyId),
-      db.from("companies").select("*").eq("id", companyId),
+      db.from("employees").select(FINANCIAL_EMPLOYEE_COLUMNS).eq("company_id", companyId).order("first_name", { ascending: true }),
+      db.from("employee_benefits").select(FINANCIAL_BENEFIT_COLUMNS).eq("company_id", companyId),
+      db.from("assets").select(FINANCIAL_ASSET_COLUMNS).eq("company_id", companyId),
+      db.from("employee_cost_histories").select(FINANCIAL_HISTORY_COLUMNS).eq("company_id", companyId),
+      db.from("payroll_legal_parameters").select(FINANCIAL_PARAMETER_COLUMNS).eq("company_id", companyId),
+      db.from("companies").select("id, name").eq("id", companyId),
     ]);
-    const staff = camelizeKeys(staffRes.data ?? []),
-      benefits = camelizeKeys(benRes.data ?? []),
-      assignedAssets = camelizeKeys(assetRes.data ?? []),
-      histories = camelizeKeys(histRes.data ?? []),
+    const staff = scopeFinancialEmployees(camelizeKeys(staffRes.data ?? []), access), employeeIds = new Set(staff.map((row) => Number(row.id))),
+      benefits = scopeFinancialRows(camelizeKeys(benRes.data ?? []), employeeIds, companyId),
+      assignedAssets = scopeFinancialRows(camelizeKeys(assetRes.data ?? []), employeeIds, companyId),
+      histories = scopeFinancialRows(camelizeKeys(histRes.data ?? []), employeeIds, companyId),
       parameterRows = camelizeKeys(paramRes.data ?? []),
       companyRows = camelizeKeys(companyRes.data ?? []);
     const parameterRow = parameterRows

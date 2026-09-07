@@ -2,6 +2,7 @@ import { getDb } from "../../../db";
 import { accessError, getCompanyId, requireAccess, requireModuleAccess } from "../../../db/authorization";
 import { calculateMonthlyCost, DEFAULT_LEGAL_PARAMETERS, median, type LegalParameters } from "../../../db/employer-cost-calculations";
 import { camelizeKeys } from "../../../db/case";
+import { FINANCIAL_BENEFIT_COLUMNS, FINANCIAL_BUDGET_COLUMNS, FINANCIAL_EMPLOYEE_COLUMNS, FINANCIAL_PARAMETER_COLUMNS, PERSONNEL_COST_MODULE, assertFinancialReportRole, canViewCompanyFinancialPlanning, scopeFinancialEmployees, scopeFinancialRows } from "../../../db/financial-access";
 
 const reportKeys = ["personnel_cost", "department_cost", "company_cost", "position_salary_comparison", "benefits_cost", "sgk_employer_cost", "tax_cost", "budget_vs_actual"] as const;
 type ReportKey = typeof reportKeys[number];
@@ -85,21 +86,23 @@ function pack(reportKey: ReportKey, title: string, columns: string[], rows: Cell
 export async function GET(request: Request) {
   try {
     const companyId = getCompanyId(request), access = await requireAccess(request, companyId);
-    await requireModuleAccess(access, "Ücret / Maliyet / Bütçe");
-    if (access.role === "employee") throw new Error("MODULE_ACCESS_DENIED");
+    await requireModuleAccess(access, PERSONNEL_COST_MODULE);
+    assertFinancialReportRole(access.role);
     const u = new URL(request.url), key = u.searchParams.get("reportKey") as ReportKey;
     if (!reportKeys.includes(key)) return Response.json({ error: "Geçersiz reportKey" }, { status: 400 });
+    if (access.role === "manager" && key === "benefits_cost") throw new Error("MODULE_ACCESS_DENIED");
     const department = u.searchParams.get("department") || "", position = u.searchParams.get("position") || "", employeeId = Number(u.searchParams.get("employeeId") || 0);
     const db = getDb();
     const [staffRes, benefitsRes, paramsRes, budgetsRes, companyRes] = await Promise.all([
-      db.from("employees").select("*").eq("company_id", companyId),
-      db.from("employee_benefits").select("*").eq("company_id", companyId),
-      db.from("payroll_legal_parameters").select("*").eq("company_id", companyId),
-      db.from("personnel_cost_budgets").select("*").eq("company_id", companyId),
-      db.from("companies").select("*").eq("id", companyId),
+      db.from("employees").select(FINANCIAL_EMPLOYEE_COLUMNS).eq("company_id", companyId),
+      db.from("employee_benefits").select(FINANCIAL_BENEFIT_COLUMNS).eq("company_id", companyId),
+      db.from("payroll_legal_parameters").select(FINANCIAL_PARAMETER_COLUMNS).eq("company_id", companyId),
+      db.from("personnel_cost_budgets").select(FINANCIAL_BUDGET_COLUMNS).eq("company_id", companyId),
+      db.from("companies").select("id, name").eq("id", companyId),
     ]);
-    const staff = camelizeKeys(staffRes.data ?? []), benefits = camelizeKeys(benefitsRes.data ?? []),
-      params = camelizeKeys(paramsRes.data ?? []), budgets = camelizeKeys(budgetsRes.data ?? []),
+    const staff = scopeFinancialEmployees(camelizeKeys(staffRes.data ?? []), access), employeeIds = new Set(staff.map((row) => Number(row.id))),
+      benefits = scopeFinancialRows(camelizeKeys(benefitsRes.data ?? []), employeeIds, companyId),
+      params = camelizeKeys(paramsRes.data ?? []), budgets = canViewCompanyFinancialPlanning(access.role) ? camelizeKeys(budgetsRes.data ?? []) : [],
       companyRows = camelizeKeys(companyRes.data ?? []);
     const p = legal(params.sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom))[0]),
       filtered = staff.filter((e) => (!department || e.department === department) && (!position || e.position === position) && (!employeeId || e.id === employeeId)),

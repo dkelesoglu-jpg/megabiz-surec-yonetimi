@@ -16,6 +16,7 @@ import {
   type LegalParameters,
 } from "../../../db/employer-cost-calculations";
 import { camelizeKeys } from "../../../db/case";
+import { FINANCIAL_ASSET_COLUMNS, FINANCIAL_BENEFIT_COLUMNS, FINANCIAL_BUDGET_COLUMNS, FINANCIAL_EMPLOYEE_COLUMNS, FINANCIAL_HEADCOUNT_COLUMNS, FINANCIAL_HISTORY_COLUMNS, FINANCIAL_PARAMETER_COLUMNS, FINANCIAL_SCENARIO_COLUMNS, PERSONNEL_COST_MODULE, assertFinancialReportRole, canViewCompanyFinancialPlanning, sanitizeFinancialPayloadForRole, scopeFinancialEmployees, scopeFinancialRows } from "../../../db/financial-access";
 
 const empty = (): CostBreakdown => ({
   gross: 0, net: 0, employeeSgk: 0, employeeUnemployment: 0, incomeTax: 0, stampTax: 0,
@@ -65,8 +66,8 @@ function pct(n: number, d: number) { return d ? Math.round((n / d) * 1000) / 10 
 export async function GET(request: Request) {
   try {
     const companyId = getCompanyId(request), access = await requireAccess(request, companyId);
-    await requireModuleAccess(access, "Ücret / Maliyet / Bütçe");
-    if (access.role === "employee") throw new Error("MODULE_ACCESS_DENIED");
+    await requireModuleAccess(access, PERSONNEL_COST_MODULE);
+    assertFinancialReportRole(access.role);
     const url = new URL(request.url), now = new Date(),
       from = url.searchParams.get("from") || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
       to = url.searchParams.get("to") || new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10),
@@ -75,23 +76,23 @@ export async function GET(request: Request) {
       positionFilter = url.searchParams.get("position") || "";
     const db = getDb();
     const [staffRes, histRes, benRes, assetRes, paramRes, budgetRes, scenarioRes, plannedRes] = await Promise.all([
-      db.from("employees").select("*").eq("company_id", companyId).order("first_name", { ascending: true }),
-      db.from("employee_cost_histories").select("*").eq("company_id", companyId),
-      db.from("employee_benefits").select("*").eq("company_id", companyId),
-      db.from("assets").select("*").eq("company_id", companyId),
-      db.from("payroll_legal_parameters").select("*").eq("company_id", companyId),
-      db.from("personnel_cost_budgets").select("*").eq("company_id", companyId),
-      db.from("personnel_budget_scenarios").select("*").eq("company_id", companyId),
-      db.from("planned_headcounts").select("*").eq("company_id", companyId),
+      db.from("employees").select(FINANCIAL_EMPLOYEE_COLUMNS).eq("company_id", companyId).order("first_name", { ascending: true }),
+      db.from("employee_cost_histories").select(FINANCIAL_HISTORY_COLUMNS).eq("company_id", companyId),
+      db.from("employee_benefits").select(FINANCIAL_BENEFIT_COLUMNS).eq("company_id", companyId),
+      db.from("assets").select(FINANCIAL_ASSET_COLUMNS).eq("company_id", companyId),
+      db.from("payroll_legal_parameters").select(FINANCIAL_PARAMETER_COLUMNS).eq("company_id", companyId),
+      db.from("personnel_cost_budgets").select(FINANCIAL_BUDGET_COLUMNS).eq("company_id", companyId),
+      db.from("personnel_budget_scenarios").select(FINANCIAL_SCENARIO_COLUMNS).eq("company_id", companyId),
+      db.from("planned_headcounts").select(FINANCIAL_HEADCOUNT_COLUMNS).eq("company_id", companyId),
     ]);
-    const staff = camelizeKeys(staffRes.data ?? []),
-      histories = camelizeKeys(histRes.data ?? []),
-      benefits = camelizeKeys(benRes.data ?? []),
-      assignedAssets = camelizeKeys(assetRes.data ?? []),
+    const staff = scopeFinancialEmployees(camelizeKeys(staffRes.data ?? []), access), employeeIds = new Set(staff.map((row) => Number(row.id))),
+      histories = scopeFinancialRows(camelizeKeys(histRes.data ?? []), employeeIds, companyId),
+      benefits = scopeFinancialRows(camelizeKeys(benRes.data ?? []), employeeIds, companyId),
+      assignedAssets = scopeFinancialRows(camelizeKeys(assetRes.data ?? []), employeeIds, companyId),
       parameters = camelizeKeys(paramRes.data ?? []),
-      budgets = camelizeKeys(budgetRes.data ?? []),
-      scenarios = camelizeKeys(scenarioRes.data ?? []),
-      plannedHeads = camelizeKeys(plannedRes.data ?? []);
+      budgets = canViewCompanyFinancialPlanning(access.role) ? camelizeKeys(budgetRes.data ?? []) : [],
+      scenarios = canViewCompanyFinancialPlanning(access.role) ? camelizeKeys(scenarioRes.data ?? []) : [],
+      plannedHeads = canViewCompanyFinancialPlanning(access.role) ? camelizeKeys(plannedRes.data ?? []) : [];
     const slices = monthSlices(from, to), details = [] as Array<Record<string, unknown> & CostBreakdown>;
     for (const e of staff) {
       if ((employeeId && e.id !== employeeId) || (departmentFilter && e.department !== departmentFilter) || (positionFilter && e.position !== positionFilter)) continue;
@@ -176,14 +177,15 @@ export async function GET(request: Request) {
         };
       }),
       budget = budgets.filter((b) => b.year >= Number(from.slice(0, 4)) && b.year <= Number(to.slice(0, 4))).reduce((s, b) => s + b.amount, 0);
-    return Response.json({
+    const payload = {
       range: { from, to },
       summary: { ...summary, employeeCount: details.length, averageCost: details.length ? summary.employerCost / details.length : 0, annualProjection: summary.employerCost * (365 / Math.max(1, dateOverlap(from, to, from, to))) },
       details, departments, positions, monthly,
       budget: { budget, actual: summary.employerCost, difference: summary.employerCost - budget, differenceRate: pct(summary.employerCost - budget, budget) },
-      parameters, benefits, budgetRecords: budgets, scenarios, plannedHeadcounts: plannedHeads,
+      parameters, benefits: access.role === "manager" ? [] : benefits, budgetRecords: budgets, scenarios, plannedHeadcounts: plannedHeads,
       filters: { departments: [...new Set(staff.map((e) => e.department))], positions: [...new Set(staff.map((e) => e.position))] },
-    });
+    };
+    return Response.json(sanitizeFinancialPayloadForRole(payload, access.role));
   } catch (e) {
     return accessError(e);
   }
@@ -192,7 +194,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const companyId = getCompanyId(request), access = await requireAccess(request, companyId, true);
-    await requireModuleAccess(access, "Ücret / Maliyet / Bütçe", true);
+    await requireModuleAccess(access, PERSONNEL_COST_MODULE, true);
     if (!["super_admin", "company_admin", "hr", "payroll"].includes(access.role)) throw new Error("MODULE_ACCESS_DENIED");
     const p = (await request.json()) as Record<string, unknown>, action = String(p.action || ""), now = new Date().toISOString(), db = getDb();
 
@@ -204,7 +206,7 @@ export async function POST(request: Request) {
           amount: Number(p.amount), frequency: String(p.frequency || "Aylık"), effective_from: String(p.effectiveFrom),
           effective_to: p.effectiveTo ? String(p.effectiveTo) : null, status: "Aktif", created_by: access.email, created_at: now, updated_at: now,
         })
-        .select()
+        .select(FINANCIAL_BENEFIT_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
       await writeAudit(access, "CREATE", "employee_benefit", row.id, null, row);
@@ -218,7 +220,7 @@ export async function POST(request: Request) {
           department_id: p.departmentId ? Number(p.departmentId) : null, position: p.position ? String(p.position) : null,
           amount: Number(p.amount), note: p.note ? String(p.note) : null, created_by: access.email, created_at: now, updated_at: now,
         })
-        .select()
+        .select(FINANCIAL_BUDGET_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
       await writeAudit(access, "CREATE", "personnel_cost_budget", row.id, null, row);
@@ -234,7 +236,7 @@ export async function POST(request: Request) {
           scope_value: p.scopeValue ? String(p.scopeValue) : null, include_planned_heads: p.includePlannedHeads !== false,
           status: "Aktif", created_by: access.email, created_at: now, updated_at: now,
         })
-        .select()
+        .select(FINANCIAL_SCENARIO_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
       await writeAudit(access, "CREATE", "personnel_budget_scenario", row.id, null, row);
@@ -254,7 +256,7 @@ export async function POST(request: Request) {
           headcount: Number(p.headcount || 1), status: "Planlandı", note: p.note ? String(p.note) : null,
           created_by: access.email, created_at: now, updated_at: now,
         })
-        .select()
+        .select(FINANCIAL_HEADCOUNT_COLUMNS)
         .single();
       if (error) throw new Error(error.message);
       await writeAudit(access, "CREATE", "planned_headcount", row.id, null, row);
@@ -294,7 +296,7 @@ export async function POST(request: Request) {
       };
       const previousDay = new Date(new Date(effectiveFrom + "T00:00:00Z").getTime() - 86400000).toISOString().slice(0, 10);
       await db.from("payroll_legal_parameters").update({ effective_to: previousDay, updated_at: now, updated_by: access.email }).eq("company_id", companyId).lt("effective_from", effectiveFrom);
-      const { data: inserted, error: insertError } = await db.from("payroll_legal_parameters").insert(values).select().single();
+      const { data: inserted, error: insertError } = await db.from("payroll_legal_parameters").insert(values).select(FINANCIAL_PARAMETER_COLUMNS).single();
       let row = inserted;
       if (insertError) {
         const { company_id, year: y, effective_from, ...updateFields } = values;
@@ -304,7 +306,7 @@ export async function POST(request: Request) {
           .eq("company_id", companyId)
           .eq("year", year)
           .eq("effective_from", effectiveFrom)
-          .select()
+          .select(FINANCIAL_PARAMETER_COLUMNS)
           .single();
         if (updateError) throw new Error(updateError.message);
         row = updated;
