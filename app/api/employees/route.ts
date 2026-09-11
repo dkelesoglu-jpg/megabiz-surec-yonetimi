@@ -10,6 +10,7 @@ import { nextNumber } from "../../../db/number-series";
 import { camelizeKeys, snakeizeKeys } from "../../../db/case";
 import { listEmployeesForAccess } from "../../../db/employee-access";
 import { upsertGatedEmployeeFields } from "../../../db/employee-access";
+import { containsPersonalHealthFields } from "../../../db/health-data";
 
 const required = [
   "firstName",
@@ -20,6 +21,18 @@ const required = [
   "startDate",
 ] as const;
 const company = getCompanyId;
+const EMPLOYEE_MUTATION_COLUMNS = [
+  "id", "company_id", "first_name", "last_name", "national_id", "employee_no",
+  "birth_date", "birth_place", "gender", "email", "phone", "address",
+  "emergency_contact", "emergency_phone", "department_id", "department",
+  "position_id", "position", "manager", "second_manager", "acting_manager",
+  "delegation_start", "delegation_end", "start_date", "end_date", "work_type",
+  "employee_type", "payroll_type", "status", "sgk_no", "occupation_code", "iban",
+  "salary", "net_salary", "salary_basis", "salary_period", "weekly_hours",
+  "cumulative_tax_base", "nationality", "passport_no", "work_permit_no",
+  "work_permit_start", "work_permit_end", "work_permit_status",
+  "work_permit_renewal_status", "work_permit_reminder_days", "created_at", "updated_at",
+].join(", ");
 
 export async function GET(request: Request) {
   try {
@@ -42,6 +55,8 @@ export async function POST(request: Request) {
     const companyId = company(request),
       access = await requireAccess(request, companyId, true),
       p = (await request.json()) as Record<string, unknown>;
+    if (containsPersonalHealthFields(p))
+      return Response.json({ error: "Kişisel sağlık verisi kabul edilmez" }, { status: 400 });
     for (const k of required)
       if (!String(p[k] || "").trim())
         return Response.json({ error: `${k} zorunludur` }, { status: 400 });
@@ -106,7 +121,7 @@ export async function POST(request: Request) {
     const { data: row, error: insertError } = await db
       .from("employees")
       .insert(insertValues)
-      .select()
+      .select(EMPLOYEE_MUTATION_COLUMNS)
       .single();
     if (insertError) throw new Error(insertError.message);
     // Kimlik/çalışma izni ve ücret/IBAN alanları listEmployeesForAccess'in
@@ -146,11 +161,13 @@ export async function PUT(request: Request) {
       access = await requireAccess(request, companyId, true),
       p = (await request.json()) as Record<string, unknown>,
       id = Number(p.id);
+    if (containsPersonalHealthFields(p))
+      return Response.json({ error: "Kişisel sağlık verisi kabul edilmez" }, { status: 400 });
     if (!id) return Response.json({ error: "Geçersiz kayıt" }, { status: 400 });
     const db = getDb();
     const { data: oldRaw } = await db
       .from("employees")
-      .select("*")
+      .select(EMPLOYEE_MUTATION_COLUMNS)
       .eq("id", id)
       .eq("company_id", companyId)
       .maybeSingle();
@@ -222,7 +239,7 @@ export async function PUT(request: Request) {
       .update(updateValues)
       .eq("id", id)
       .eq("company_id", companyId)
-      .select()
+      .select(EMPLOYEE_MUTATION_COLUMNS)
       .single();
     if (updateError) throw new Error(updateError.message);
     const row = camelizeKeys(rowRaw);

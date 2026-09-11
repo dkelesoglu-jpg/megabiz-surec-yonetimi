@@ -410,7 +410,6 @@ export const employees = sqliteTable(
     birthDate: text("birth_date"),
     birthPlace: text("birth_place"),
     gender: text("gender"),
-    bloodType: text("blood_type"),
     email: text("email"),
     phone: text("phone"),
     address: text("address"),

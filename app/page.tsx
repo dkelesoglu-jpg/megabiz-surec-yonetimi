@@ -1430,11 +1430,6 @@ function EmployeeForm({
               name="gender"
               options={["Kadın", "Erkek", "Belirtmek İstemiyor"]}
             />
-            <Select
-              label="Kan Grubu"
-              name="bloodType"
-              options={["A Rh+", "A Rh-", "B Rh+", "B Rh-", "AB Rh+", "0 Rh+"]}
-            />
             <Field label="Telefon" name="phone" type="tel" />
             <Field label="E-posta" name="email" type="email" />
           </div>

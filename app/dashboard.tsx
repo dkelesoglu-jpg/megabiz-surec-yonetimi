@@ -157,7 +157,7 @@ export default function Dashboard({
           <div>
             <h3>Süreli İş ve Belge Bildirim Merkezi</h3>
             <p>
-              Çalışma izni, sözleşme, sağlık raporu, sertifika ve tüm geçerlilik
+              Çalışma izni, sözleşme, sertifika ve tüm geçerlilik
               tarihleri
             </p>
           </div>
