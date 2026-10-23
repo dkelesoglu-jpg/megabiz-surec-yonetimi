@@ -46,6 +46,9 @@
 
 ## 2.4 Ürün sahibinden beklenen kararlar (sıralı)
 
+> Güncel liste ve son tarihler: [06-beta-bagimliliklari.md](06-beta-bagimliliklari.md). Aşağıdaki ilk liste tarihsel kayıt olarak bırakıldı.
+
+
 1. **Apple Developer + Google Play hesaplarının açılması** (kurumsal mı bireysel mi?) — H1
 2. Supabase organizasyonu/projelerinin açılması (ücretsiz katman) — H2 başı
 3. Uygulamanın kesin adı ve paket kimliği (öneri: `com.globaltv.community`) — H2

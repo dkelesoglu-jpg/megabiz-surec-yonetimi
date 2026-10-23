@@ -4,19 +4,21 @@
 
 | Ortam | Amaç | Supabase projesi | Mobil dağıtım | Kim değiştirir |
 |---|---|---|---|---|
-| `dev` | Geliştirme | `globaltv-dev` (veya yerel `supabase start`) | Geliştirici cihazı / emülatör | Geliştirici serbestçe |
+| `dev` | Geliştirme | Yerel `supabase start` (hesap gerekmez) veya `globaltv-dev` | Geliştirici cihazı / emülatör | Geliştirici serbestçe |
 | `staging` | Test ve beta | `globaltv-staging` | TestFlight + Google Play dahili/kapalı test | Yalnızca `main` dalına birleşen ve CI'dan geçen kod |
 | `prod` | Canlı | `globaltv-prod` | App Store + Google Play üretim | **Yalnızca ürün sahibinin yazılı onayıyla** |
 
 - Her ortamın anahtarları ayrıdır; bir ortamın anahtarı başka ortamda kullanılmaz.
 - Uygulama hangi ortamda olduğunu `APP_ENV` değeriyle bilir; `dev` ve `staging` sürümlerinde ekranın köşesinde ortam etiketi görünür.
-- Android'de ortam başına farklı paket kimliği planlanır (`…dev`, `…staging`), böylece test ve canlı sürüm aynı cihazda yan yana kurulabilir (H3'te flavor olarak eklenecek).
+- Android'de ortam başına farklı paket kimliği ve ad kullanılır (`…dev` / "Global TV DEV", `…staging` / "Global TV BETA"), böylece test ve canlı sürüm aynı cihazda yan yana kurulabilir. Ortam `env/<ortam>.json` içindeki `APP_ENV`'den otomatik okunur; ek bir parametre gerekmez.
+- Supabase projeleri mevcut şirketlerin organizasyonlarında **açılmaz**; projeye özel ayrı bir hesap/organizasyon kullanılır (bkz. 04).
 
 ## 3.2 Gizli bilgiler
 
 - `env/dev.example.json`, `env/staging.example.json`, `env/prod.example.json` → **şablon**, commit edilir, gerçek değer içermez.
 - `env/dev.json` vb. → gerçek değerler, `.gitignore` ile dışlanır.
-- CI'da değerler GitHub Actions *Secrets* olarak tutulur; `service_role` anahtarı mobil uygulamaya **hiçbir zaman** girmez.
+- Mobil uygulamada yalnızca Supabase **publishable key** (`SUPABASE_PUBLISHABLE_KEY`) bulunur; erişim RLS ile korunur.
+- CI'da değerler GitHub Actions *Secrets* olarak tutulur; `service_role` / secret anahtar mobil uygulamaya **hiçbir zaman** girmez, yalnızca Edge Functions'ta kullanılır.
 - Mağaza imzalama anahtarları (Android keystore, Apple sertifikaları) depoda tutulmaz; parola yöneticisi + CI gizli değişkeni.
 
 ## 3.3 Değişiklik akışı
@@ -35,7 +37,11 @@
 
 ## 3.4 Test cihazına yeni sürüm aktarma
 
-### Hemen şimdi (hesap açılmadan, geliştirici makinesinden)
+### Hemen şimdi (hesap açılmadan)
+
+En kolay yol: CI'ın her değişiklikte ürettiği test APK'sı — adımlar [05-cihaz-testi-rehberi.md](05-cihaz-testi-rehberi.md).
+
+Geliştirici makinesinden:
 
 **Android (en kolayı):**
 1. Telefonda *Ayarlar → Telefon hakkında → Yapım numarası*'na 7 kez dokunun → *Geliştirici seçenekleri → USB hata ayıklama* açın.

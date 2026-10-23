@@ -2,15 +2,16 @@
 
 ⚠️ Hesap açma ve ödeme gerektiren adımlar **ürün sahibinin onayı** ile yapılır. Henüz hiçbir hesap açılmadı.
 
-## Hesaplar (onay gerekli)
-- [ ] Karar: kurumsal mı bireysel hesap mı? Kurumsal için D-U-N-S numarası (ücretsiz, 1–2 hafta) (H1)
-- [ ] Apple Developer Program — 99 USD/yıl (H1–H2)
-- [ ] Google Play Console — 25 USD tek sefer; yeni bireysel hesaplarda üretime çıkmadan önce **en az 12 test kullanıcısıyla 14 gün kapalı test** şartı var → beta takvimiyle uyumlu, ama hesap Kasım başında açılmalı (H2)
-- [ ] AdMob hesabı (H5)
+## Hesaplar (onay gerekli — ürün sahibi kararı 23 Ekim: henüz ücretli kayıt yok, şirket kuruluşu sonra)
+- [x] Teknik altyapı kurumsal hesaba geçişe hazır (tek kimlik dosyası, git dışı imza ayarları) — bkz. docs/04
+- [ ] Proje e-postası (ücretsiz) — tüm hesaplar bununla açılacak (D4)
+- [ ] Apple Developer Program — 99 USD/yıl — bireysel / kurumsal kararı, son tarih 24 Kasım (D1)
+- [ ] Google Play Console — 25 USD — son tarih 1 Aralık; yoksa Android betası APK ile (D3). Yeni kişisel hesaplarda üretime çıkmadan önce **12 test kullanıcısı × 14 gün kapalı test** şartı var
+- [ ] AdMob hesabı (H5, onayla)
 
 ## Uygulama kimliği
-- [ ] Uygulama adı (mağazada benzersiz olmalı; "Global TV" çok yaygın — alternatifler) (H2)
-- [ ] Paket kimliği / Bundle ID: öneri `com.globaltv.community` (H2)
+- [ ] Kalıcı uygulama adı (mağazada benzersiz olmalı; "Global TV" çok yaygın) — **ürün sahibi onayı bekleniyor** (D2)
+- [ ] Kalıcı paket kimliği — **ürün sahibi onayı bekleniyor** (D2). Şu an geçici: `com.placeholder.globaltv`; değişiklik tek dosyada (`app/identity/AppIdentity.xcconfig`)
 - [ ] Uygulama simgesi ve açılış ekranı (H4)
 
 ## Mağaza politikası uyumu
