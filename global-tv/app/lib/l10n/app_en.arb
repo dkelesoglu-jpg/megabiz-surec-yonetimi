@@ -1,0 +1,78 @@
+{
+  "@@locale": "en",
+  "appTitle": "Global TV",
+  "navLive": "Live TV",
+  "navFavorites": "Favorites",
+  "navProfile": "Profile",
+  "searchChannels": "Search channels",
+  "allCountries": "All countries",
+  "allCategories": "All",
+  "categoryNews": "News",
+  "categorySports": "Sports",
+  "categoryEntertainment": "Entertainment",
+  "categoryKids": "Kids",
+  "categoryMusic": "Music",
+  "categoryDocumentary": "Documentary",
+  "categoryOther": "Other",
+  "noChannels": "No channels match your filters.",
+  "noFavorites": "You have no favorite channels yet. Tap the heart on a channel to add it.",
+  "addFavorite": "Add to favorites",
+  "removeFavorite": "Remove from favorites",
+  "liveBadge": "LIVE",
+  "demoBadge": "Demo content",
+  "playerError": "The stream could not be played. Please try again.",
+  "retry": "Retry",
+  "chatTitle": "Live chat",
+  "chatHint": "Write a message…",
+  "chatSend": "Send",
+  "chatLoginRequired": "Sign in to join the chat.",
+  "chatEmpty": "No messages yet. Say hello!",
+  "report": "Report",
+  "blockUser": "Block user",
+  "reportReasonTitle": "Why are you reporting this message?",
+  "reasonSpam": "Spam",
+  "reasonAbuse": "Harassment or abuse",
+  "reasonHate": "Hate speech",
+  "reasonSexual": "Sexual content",
+  "reasonOther": "Other",
+  "reportSent": "Thank you. Our moderators will review it.",
+  "userBlocked": "{username} is blocked. You will no longer see their messages.",
+  "@userBlocked": {
+    "placeholders": {
+      "username": {
+        "type": "String"
+      }
+    }
+  },
+  "cancel": "Cancel",
+  "signIn": "Sign in",
+  "signOut": "Sign out",
+  "signInTitle": "Welcome",
+  "signInSubtitle": "Sign in to chat and keep your favorites on all your devices.",
+  "email": "Email",
+  "password": "Password",
+  "continueAsGuest": "Continue as guest",
+  "signInWithApple": "Sign in with Apple",
+  "signInWithGoogle": "Sign in with Google",
+  "invalidEmail": "Enter a valid email address.",
+  "passwordTooShort": "Password must be at least 8 characters.",
+  "guest": "Guest",
+  "settings": "Settings",
+  "language": "Language",
+  "privacy": "Privacy & data",
+  "blockedUsers": "Blocked users",
+  "deleteAccount": "Delete account",
+  "deleteAccountConfirm": "Your profile, favorites and block list will be deleted. Your chat messages will be anonymized. This cannot be undone.",
+  "delete": "Delete",
+  "accountDeletionRequested": "Your account deletion request has been received.",
+  "environmentLabel": "Environment: {env}",
+  "@environmentLabel": {
+    "placeholders": {
+      "env": {
+        "type": "String"
+      }
+    }
+  },
+  "demoModeNotice": "Demo mode: licensed test streams only, no server connection.",
+  "languageAuto": "Device language"
+}

@@ -1,0 +1,12 @@
+# Gerçek ortam değerleri ve anahtarlar asla commit edilmez
+env/*.json
+!env/*.example.json
+*.jks
+*.keystore
+key.properties
+*.p12
+*.mobileprovision
+.env
+.env.*
+supabase/.temp/
+supabase/.branches/

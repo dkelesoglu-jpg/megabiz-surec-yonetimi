@@ -1,0 +1,26 @@
+name: Global TV — mobil CI
+
+on:
+  pull_request:
+    paths: ['global-tv/**', '.github/workflows/global-tv-ci.yml']
+  push:
+    branches: [main]
+    paths: ['global-tv/**', '.github/workflows/global-tv-ci.yml']
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: global-tv/app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+      - run: flutter pub get
+      - run: flutter gen-l10n
+      - run: flutter analyze
+      - run: flutter test
