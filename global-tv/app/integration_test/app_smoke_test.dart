@@ -39,7 +39,9 @@ void main() {
     // Favoriye ekle ve geri dön
     await tester.tap(find.byTooltip('Favorilere ekle'));
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.pageBack();
+    // Uygulama çubuğundaki geri tuşu (Android ve iOS'ta aynı BackButton bileşeni).
+    // tester.pageBack() kullanılmaz: İngilizce "Back" ipucunu arar, Türkçe arayüzde bulamaz.
+    await tester.tap(find.byType(BackButton));
     await pumpUntil(tester, find.text('Favoriler'));
 
     await tester.tap(find.text('Favoriler'));

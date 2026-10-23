@@ -19,7 +19,10 @@ class PlayerScreen extends ConsumerWidget {
     final channel = channels.where((c) => c.id == channelId).firstOrNull;
 
     if (channel == null) {
-      return Scaffold(appBar: AppBar(), body: Center(child: Text(l10n.noChannels)));
+      return Scaffold(
+        appBar: AppBar(),
+        body: Center(child: Text(l10n.noChannels)),
+      );
     }
 
     final isFavorite = ref.watch(favoritesProvider).contains(channel.id);
@@ -34,30 +37,42 @@ class PlayerScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: ColoredBox(
-              color: Colors.black,
-              child: ref.watch(streamUrlProvider(channel.id)).when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => _PlayerMessage(
-                      text: errorText(l10n, e),
-                      onRetry: () => ref.invalidate(streamUrlProvider(channel.id)),
+      // Video en fazla gövdenin %45'i kadar yer kaplar; yatay ekranda veya klavye
+      // açıkken sohbet alanı sıkışıp taşmaz.
+      body: LayoutBuilder(
+        builder: (context, constraints) => Column(
+          children: [
+            SizedBox(
+              height: (constraints.maxWidth * 9 / 16).clamp(0.0, constraints.maxHeight * 0.45),
+              width: double.infinity,
+              child: ColoredBox(
+                color: Colors.black,
+                child: ref
+                    .watch(streamUrlProvider(channel.id))
+                    .when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => _PlayerMessage(
+                        text: errorText(l10n, e),
+                        onRetry: () => ref.invalidate(streamUrlProvider(channel.id)),
+                      ),
+                      data: (url) => _HlsPlayer(key: ValueKey(url), url: url),
                     ),
-                    data: (url) => _HlsPlayer(key: ValueKey(url), url: url),
-                  ),
+              ),
             ),
-          ),
-          if (channel.attribution != null)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
-              child: Text(channel.attribution!, style: Theme.of(context).textTheme.bodySmall),
-            ),
-          const Divider(),
-          Expanded(child: ChatPanel(channelId: channel.id)),
-        ],
+            if (channel.attribution != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                child: Text(
+                  channel.attribution!,
+                  style: Theme.of(context).textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            const Divider(),
+            Expanded(child: ChatPanel(channelId: channel.id)),
+          ],
+        ),
       ),
     );
   }
@@ -71,15 +86,19 @@ class _PlayerMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(text, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            FilledButton.tonal(onPressed: onRetry, child: Text(AppLocalizations.of(context).retry)),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          text,
+          style: const TextStyle(color: Colors.white),
+          textAlign: TextAlign.center,
         ),
-      );
+        const SizedBox(height: 8),
+        FilledButton.tonal(onPressed: onRetry, child: Text(AppLocalizations.of(context).retry)),
+      ],
+    ),
+  );
 }
 
 class _HlsPlayer extends StatefulWidget {
@@ -155,8 +174,10 @@ class _HlsPlayerState extends State<_HlsPlayer> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               color: Colors.red,
-              child: Text(l10n.liveBadge,
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+              child: Text(
+                l10n.liveBadge,
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+              ),
             ),
           ),
           Positioned(
