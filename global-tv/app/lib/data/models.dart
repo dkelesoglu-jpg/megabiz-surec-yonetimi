@@ -7,7 +7,6 @@ class Channel {
     required this.countryCode,
     required this.category,
     required this.language,
-    required this.streamUrl,
     this.attribution,
     this.isDemo = false,
   });
@@ -15,14 +14,10 @@ class Channel {
   final String id;
   final String name;
 
-  /// ISO 3166-1 alpha-2 ülke kodu (ör. TR, US). Uluslararası içerik için `INT`.
+  /// ISO 3166-1 alpha-2 ülke kodu (ör. TR, US).
   final String countryCode;
   final ChannelCategory category;
   final String language;
-
-  /// Yalnızca yayın hakkı doğrulanmış HTTPS HLS adresi. Gerçek ortamda bu
-  /// değer `get-stream` Edge Function'ından alınır.
-  final String streamUrl;
 
   /// Lisansın gerektirdiği atıf metni (ör. CC BY).
   final String? attribution;
@@ -41,7 +36,9 @@ class ChatMessage {
 
   final String id;
   final String channelId;
-  final String userId;
+
+  /// Hesabı silinmiş kullanıcılarda `null`.
+  final String? userId;
   final String username;
   final String body;
   final DateTime createdAt;
@@ -55,4 +52,16 @@ class AppUser {
   final String id;
   final String username;
   final String email;
+}
+
+/// Kullanıcıya gösterilebilecek, tanımlı hata türleri.
+enum AppErrorCode { invalidCredentials, emailTaken, confirmEmail, rateLimited, notAvailable, geoBlocked, unknown }
+
+class AppException implements Exception {
+  const AppException(this.code);
+
+  final AppErrorCode code;
+
+  @override
+  String toString() => 'AppException($code)';
 }

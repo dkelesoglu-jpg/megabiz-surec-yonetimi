@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/error_text.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,6 +18,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _busy = false;
+  bool _signUp = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -27,10 +30,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    final auth = ref.read(authProvider.notifier);
     try {
-      await ref.read(authProvider.notifier).signInWithEmail(_email.text.trim(), _password.text);
+      await (_signUp
+          ? auth.signUpWithEmail(_email.text.trim(), _password.text)
+          : auth.signInWithEmail(_email.text.trim(), _password.text));
       if (mounted) context.pop();
+    } catch (e) {
+      if (mounted) setState(() => _error = errorText(AppLocalizations.of(context), e));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -68,15 +79,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     key: const Key('password'),
                     controller: _password,
                     obscureText: true,
-                    autofillHints: const [AutofillHints.password],
+                    autofillHints: [_signUp ? AutofillHints.newPassword : AutofillHints.password],
                     decoration: InputDecoration(labelText: l10n.password, border: const OutlineInputBorder()),
                     validator: (v) => (v?.length ?? 0) >= 8 ? null : l10n.passwordTooShort,
                   ),
                 ],
               ),
             ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
             const SizedBox(height: 16),
-            FilledButton(onPressed: _busy ? null : _submit, child: Text(l10n.signIn)),
+            FilledButton(
+              key: const Key('submit'),
+              onPressed: _busy ? null : _submit,
+              child: Text(_signUp ? l10n.signUp : l10n.signIn),
+            ),
+            TextButton(
+              onPressed: () => setState(() {
+                _signUp = !_signUp;
+                _error = null;
+              }),
+              child: Text(_signUp ? l10n.haveAccount : l10n.noAccount),
+            ),
             const SizedBox(height: 24),
             // Apple ve Google ile giriş H3'te Supabase Auth ile bağlanacak.
             OutlinedButton.icon(onPressed: null, icon: const Icon(Icons.apple), label: Text(l10n.signInWithApple)),

@@ -6,6 +6,7 @@ import 'repositories.dart';
 /// Yalnızca geliştirme ve test için: sağlayıcıların açıkça test amaçlı
 /// yayımladığı HLS akışları ve açık lisanslı (CC BY) Blender filmleri.
 /// Ayrıntılar: docs/is-listeleri/yayin-lisansi.md
+/// Sunucu tarafındaki karşılığı: supabase/seed.sql
 const demoChannels = <Channel>[
   Channel(
     id: 'demo-apple-bipbop',
@@ -13,18 +14,15 @@ const demoChannels = <Channel>[
     countryCode: 'US',
     category: ChannelCategory.other,
     language: 'en',
-    streamUrl:
-        'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8',
     attribution: 'Apple HLS developer example stream',
     isDemo: true,
   ),
   Channel(
     id: 'demo-mux-bbb',
     name: 'Big Buck Bunny',
-    countryCode: 'INT',
+    countryCode: 'NL',
     category: ChannelCategory.kids,
     language: 'en',
-    streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
     attribution: '© Blender Foundation, CC BY 3.0 · stream: Mux test streams',
     isDemo: true,
   ),
@@ -34,7 +32,6 @@ const demoChannels = <Channel>[
     countryCode: 'NL',
     category: ChannelCategory.entertainment,
     language: 'en',
-    streamUrl: 'https://test-streams.mux.dev/tos_ismc/main.m3u8',
     attribution: '© Blender Foundation, CC BY 3.0 · stream: Mux test streams',
     isDemo: true,
   ),
@@ -44,7 +41,6 @@ const demoChannels = <Channel>[
     countryCode: 'TR',
     category: ChannelCategory.news,
     language: 'tr',
-    streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
     attribution: 'Yer tutucu: lisanslı kanal bulunana kadar demo akış',
     isDemo: true,
   ),
@@ -54,15 +50,30 @@ const demoChannels = <Channel>[
     countryCode: 'TR',
     category: ChannelCategory.sports,
     language: 'tr',
-    streamUrl: 'https://test-streams.mux.dev/tos_ismc/main.m3u8',
     attribution: 'Yer tutucu: lisanslı kanal bulunana kadar demo akış',
     isDemo: true,
   ),
 ];
 
+const _bbb = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+const _tos = 'https://test-streams.mux.dev/tos_ismc/main.m3u8';
+
+const demoStreams = <String, String>{
+  'demo-apple-bipbop':
+      'https://devstreaming-cdn.apple.com/videos/streaming/examples/bipbop_adv_example_hevc/master.m3u8',
+  'demo-mux-bbb': _bbb,
+  'demo-mux-tos': _tos,
+  'demo-tr-haber': _bbb,
+  'demo-tr-spor': _tos,
+};
+
 class DemoChannelRepository implements ChannelRepository {
   @override
   Future<List<Channel>> fetchChannels() async => demoChannels;
+
+  @override
+  Future<String> streamUrl(String channelId, {String? countryCode}) async =>
+      demoStreams[channelId] ?? (throw const AppException(AppErrorCode.notAvailable));
 }
 
 class DemoChatRepository implements ChatRepository {
@@ -99,12 +110,43 @@ class DemoChatRepository implements ChatRepository {
 
 class DemoAuthRepository implements AuthRepository {
   @override
+  Future<AppUser?> restoreSession() async => null;
+
+  @override
   Future<AppUser> signInWithEmail({required String email, required String password}) async =>
       AppUser(id: 'demo-${email.hashCode}', username: email.split('@').first, email: email);
+
+  @override
+  Future<AppUser> signUpWithEmail({required String email, required String password}) =>
+      signInWithEmail(email: email, password: password);
 
   @override
   Future<void> signOut() async {}
 
   @override
-  Future<void> requestAccountDeletion() async {}
+  Future<void> deleteAccount() async {}
+}
+
+class DemoFavoritesRepository implements FavoritesRepository {
+  final _ids = <String>{};
+
+  @override
+  Future<Set<String>> load() async => {..._ids};
+
+  @override
+  Future<void> add(String channelId) async => _ids.add(channelId);
+
+  @override
+  Future<void> remove(String channelId) async => _ids.remove(channelId);
+}
+
+class DemoBlocksRepository implements BlocksRepository {
+  @override
+  Future<Map<String, String>> load() async => const {};
+
+  @override
+  Future<void> block(String userId) async {}
+
+  @override
+  Future<void> unblock(String userId) async {}
 }

@@ -60,5 +60,15 @@
   "accountDeletionRequested": "Hesap silme talebiniz alındı.",
   "environmentLabel": "Ortam: {env}",
   "demoModeNotice": "Demo modu: yalnızca lisanslı test akışları, sunucu bağlantısı yok.",
-  "languageAuto": "Cihaz dili"
+  "languageAuto": "Cihaz dili",
+  "signUp": "Hesap oluştur",
+  "noAccount": "Hesabınız yok mu? Hesap oluşturun",
+  "haveAccount": "Zaten hesabınız var mı? Giriş yapın",
+  "errInvalidCredentials": "E-posta veya şifre hatalı.",
+  "errEmailTaken": "Bu e-posta ile kayıtlı bir hesap zaten var.",
+  "errConfirmEmail": "Size bir doğrulama e-postası gönderdik. Doğruladıktan sonra giriş yapın.",
+  "errRateLimited": "Çok hızlı mesaj gönderiyorsunuz. Lütfen biraz bekleyin.",
+  "errNotAvailable": "Bu kanal şu anda yayında değil.",
+  "errGeoBlocked": "Bu kanal ülkenizde yayınlanmıyor.",
+  "errUnknown": "Bir sorun oluştu. Lütfen tekrar deneyin."
 }

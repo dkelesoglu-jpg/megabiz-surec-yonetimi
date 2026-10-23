@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../../core/router.dart';
 import '../../data/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/error_text.dart';
 
 final chatMessagesProvider = StreamProvider.family<List<ChatMessage>, String>(
   (ref, channelId) => ref.watch(chatRepositoryProvider).watchMessages(channelId),
@@ -32,8 +33,15 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
   Future<void> _send(AppUser user) async {
     final body = _input.text.trim();
     if (body.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final l10n = AppLocalizations.of(context);
     _input.clear();
-    await ref.read(chatRepositoryProvider).send(channelId: widget.channelId, user: user, body: body);
+    try {
+      await ref.read(chatRepositoryProvider).send(channelId: widget.channelId, user: user, body: body);
+    } catch (e) {
+      _input.text = body;
+      messenger.showSnackBar(SnackBar(content: Text(errorText(l10n, e))));
+    }
   }
 
   @override
@@ -66,7 +74,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
                       dense: true,
                       title: Text(m.username, style: const TextStyle(fontWeight: FontWeight.bold)),
                       subtitle: Text(m.body),
-                      onLongPress: user == null || m.userId == user.id
+                      onLongPress: user == null || m.userId == null || m.userId == user.id
                           ? null
                           : () => _showMessageActions(context, m),
                     );
@@ -139,7 +147,7 @@ class _ChatPanelState extends ConsumerState<ChatPanel> {
         await ref.read(chatRepositoryProvider).report(messageId: message.id, reason: reason);
         messenger.showSnackBar(SnackBar(content: Text(l10n.reportSent)));
       case 'block':
-        ref.read(blockedUsersProvider.notifier).block(message.userId, message.username);
+        await ref.read(blockedUsersProvider.notifier).block(message.userId!, message.username);
         messenger.showSnackBar(SnackBar(content: Text(l10n.userBlocked(message.username))));
     }
   }

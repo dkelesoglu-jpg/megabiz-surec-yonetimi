@@ -1,0 +1,4 @@
+// Bu dosyayı LocalSigning.xcconfig adıyla kopyalayın (git'e girmez).
+// Apple Developer → Membership → Team ID
+DEVELOPMENT_TEAM = XXXXXXXXXX
+CODE_SIGN_STYLE = Automatic

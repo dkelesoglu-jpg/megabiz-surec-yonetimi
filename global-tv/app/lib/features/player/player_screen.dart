@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../core/providers.dart';
-import '../../data/models.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/error_text.dart';
 import '../chat/chat_panel.dart';
 
 class PlayerScreen extends ConsumerWidget {
@@ -36,7 +36,20 @@ class PlayerScreen extends ConsumerWidget {
       ),
       body: Column(
         children: [
-          _HlsPlayer(channel: channel),
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: ColoredBox(
+              color: Colors.black,
+              child: ref.watch(streamUrlProvider(channel.id)).when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => _PlayerMessage(
+                      text: errorText(l10n, e),
+                      onRetry: () => ref.invalidate(streamUrlProvider(channel.id)),
+                    ),
+                    data: (url) => _HlsPlayer(key: ValueKey(url), url: url),
+                  ),
+            ),
+          ),
           if (channel.attribution != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
@@ -50,10 +63,29 @@ class PlayerScreen extends ConsumerWidget {
   }
 }
 
-class _HlsPlayer extends StatefulWidget {
-  const _HlsPlayer({required this.channel});
+class _PlayerMessage extends StatelessWidget {
+  const _PlayerMessage({required this.text, required this.onRetry});
 
-  final Channel channel;
+  final String text;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(text, style: const TextStyle(color: Colors.white), textAlign: TextAlign.center),
+            const SizedBox(height: 8),
+            FilledButton.tonal(onPressed: onRetry, child: Text(AppLocalizations.of(context).retry)),
+          ],
+        ),
+      );
+}
+
+class _HlsPlayer extends StatefulWidget {
+  const _HlsPlayer({super.key, required this.url});
+
+  final String url;
 
   @override
   State<_HlsPlayer> createState() => _HlsPlayerState();
@@ -70,7 +102,7 @@ class _HlsPlayerState extends State<_HlsPlayer> {
   }
 
   Future<void> _init() async {
-    final url = Uri.parse(widget.channel.streamUrl);
+    final url = Uri.parse(widget.url);
     // Güvenlik: yalnızca HTTPS kaynaklar oynatılır.
     if (url.scheme != 'https') {
       setState(() => _failed = true);
@@ -109,14 +141,7 @@ class _HlsPlayerState extends State<_HlsPlayer> {
 
     Widget child;
     if (_failed) {
-      child = Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(l10n.playerError, style: const TextStyle(color: Colors.white)),
-          const SizedBox(height: 8),
-          FilledButton.tonal(onPressed: _retry, child: Text(l10n.retry)),
-        ],
-      );
+      return _PlayerMessage(text: l10n.playerError, onRetry: _retry);
     } else if (controller == null || !controller.value.isInitialized) {
       child = const CircularProgressIndicator();
     } else {
@@ -150,9 +175,6 @@ class _HlsPlayerState extends State<_HlsPlayer> {
       );
     }
 
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: ColoredBox(color: Colors.black, child: Center(child: child)),
-    );
+    return Center(child: child);
   }
 }

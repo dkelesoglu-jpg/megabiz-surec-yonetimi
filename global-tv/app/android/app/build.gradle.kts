@@ -1,7 +1,42 @@
+import java.util.Base64
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// Uygulama adı ve paket kimliği tek kaynaktan gelir: identity/AppIdentity.xcconfig
+val identity = Properties().apply {
+    file("../../identity/AppIdentity.xcconfig").inputStream().use { load(it) }
+}
+val appIdBase: String = identity.getProperty("APP_ID_BASE")
+val appDisplayName: String = identity.getProperty("APP_DISPLAY_NAME")
+
+// Ortam, `--dart-define-from-file=../env/<ortam>.json` içindeki APP_ENV'den okunur.
+val dartDefines: Map<String, String> = (project.findProperty("dart-defines") as String?)
+    ?.split(",")
+    ?.map { String(Base64.getDecoder().decode(it)) }
+    ?.mapNotNull { entry -> entry.split("=", limit = 2).takeIf { it.size == 2 }?.let { it[0] to it[1] } }
+    ?.toMap()
+    ?: emptyMap()
+val appEnv: String = dartDefines["APP_ENV"] ?: "dev"
+val isProd = appEnv == "prod"
+
+// Yükleme (upload) anahtarı: android/key.properties — git'e girmez.
+val keystorePropertiesFile = rootProject.file("key.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) keystorePropertiesFile.inputStream().use { load(it) }
+}
+
+if (isProd) {
+    if (appIdBase.contains("placeholder")) {
+        throw GradleException("prod derlemesi geçici paket kimliğiyle yapılamaz: identity/AppIdentity.xcconfig")
+    }
+    if (!keystorePropertiesFile.exists()) {
+        throw GradleException("prod derlemesi için android/key.properties gerekli (yükleme anahtarı).")
+    }
 }
 
 android {
@@ -15,25 +50,33 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.globaltv.global_tv"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
+        applicationId = if (isProd) appIdBase else "$appIdBase.$appEnv"
+        manifestPlaceholders["appLabel"] = when (appEnv) {
+            "prod" -> appDisplayName
+            "staging" -> "$appDisplayName BETA"
+            else -> "$appDisplayName ${appEnv.uppercase()}"
+        }
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
-        // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
-        // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)
-        // You can force using the value of versionCode by specifying the `-P force-version-code-ignoring-abi=true`
-        // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Anahtar yoksa (dev/staging test APK'ları) hata ayıklama anahtarıyla imzalanır.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

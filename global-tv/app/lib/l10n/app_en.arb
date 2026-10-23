@@ -74,5 +74,15 @@
     }
   },
   "demoModeNotice": "Demo mode: licensed test streams only, no server connection.",
-  "languageAuto": "Device language"
+  "languageAuto": "Device language",
+  "signUp": "Create account",
+  "noAccount": "No account yet? Create one",
+  "haveAccount": "Already have an account? Sign in",
+  "errInvalidCredentials": "Email or password is incorrect.",
+  "errEmailTaken": "An account with this email already exists.",
+  "errConfirmEmail": "We sent you a confirmation email. Please confirm, then sign in.",
+  "errRateLimited": "You are sending messages too fast. Please wait a moment.",
+  "errNotAvailable": "This channel is not available right now.",
+  "errGeoBlocked": "This channel is not available in your country.",
+  "errUnknown": "Something went wrong. Please try again."
 }

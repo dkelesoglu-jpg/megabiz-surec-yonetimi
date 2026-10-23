@@ -1,0 +1,6 @@
+# android/key.properties olarak kopyalayın (git'e girmez). Anahtar dosyasını depoya koymayın.
+# Oluşturma: keytool -genkey -v -keystore ~/globaltv-upload.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload
+storePassword=
+keyPassword=
+keyAlias=upload
+storeFile=/mutlak/yol/globaltv-upload.jks

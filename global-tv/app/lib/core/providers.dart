@@ -1,20 +1,47 @@
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/demo_repositories.dart';
 import '../data/models.dart';
 import '../data/repositories.dart';
+import '../data/supabase_repositories.dart';
 import 'app_config.dart';
 
 final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment());
 
-// H2: AppConfig.isDemoMode false olduğunda Supabase uygulamaları döndürülecek.
-final channelRepositoryProvider = Provider<ChannelRepository>((ref) => DemoChannelRepository());
-final chatRepositoryProvider = Provider<ChatRepository>((ref) => DemoChatRepository());
-final authRepositoryProvider = Provider<AuthRepository>((ref) => DemoAuthRepository());
+/// Demo modunda `null`. main.dart'ta Supabase.initialize çağrıldıktan sonra kullanılır.
+final supabaseClientProvider = Provider<SupabaseClient?>(
+  (ref) => ref.watch(appConfigProvider).isDemoMode ? null : Supabase.instance.client,
+);
+
+T _pick<T>(Ref ref, T Function() demo, T Function(SupabaseClient) remote) {
+  final client = ref.watch(supabaseClientProvider);
+  return client == null ? demo() : remote(client);
+}
+
+final channelRepositoryProvider = Provider<ChannelRepository>(
+    (ref) => _pick(ref, DemoChannelRepository.new, SupabaseChannelRepository.new));
+final chatRepositoryProvider =
+    Provider<ChatRepository>((ref) => _pick(ref, DemoChatRepository.new, SupabaseChatRepository.new));
+final authRepositoryProvider =
+    Provider<AuthRepository>((ref) => _pick(ref, DemoAuthRepository.new, SupabaseAuthRepository.new));
+final favoritesRepositoryProvider = Provider<FavoritesRepository>(
+    (ref) => _pick(ref, DemoFavoritesRepository.new, SupabaseFavoritesRepository.new));
+final blocksRepositoryProvider = Provider<BlocksRepository>(
+    (ref) => _pick(ref, DemoBlocksRepository.new, SupabaseBlocksRepository.new));
 
 final channelsProvider = FutureProvider<List<Channel>>(
   (ref) => ref.watch(channelRepositoryProvider).fetchChannels(),
+);
+
+final streamUrlProvider = FutureProvider.autoDispose.family<String, String>(
+  (ref, channelId) => ref.watch(channelRepositoryProvider).streamUrl(
+        channelId,
+        countryCode: PlatformDispatcher.instance.locale.countryCode,
+      ),
 );
 
 // ---------------------------------------------------------------------------
@@ -71,18 +98,33 @@ final availableCountriesProvider = Provider<List<String>>((ref) {
 });
 
 // ---------------------------------------------------------------------------
-// Favoriler (H2: Supabase `favorites` tablosuna bağlanacak)
+// Favoriler: misafirde yalnızca cihazda, girişte sunucuda
 // ---------------------------------------------------------------------------
 class FavoritesNotifier extends Notifier<Set<String>> {
+  /// Sunucudan ilk yükleme; değişiklikler bundan sonra uygulanır ki yükleme
+  /// sonucu kullanıcının o sırada yaptığı değişikliğin üzerine yazmasın.
+  Future<void>? _loaded;
+
   @override
-  Set<String> build() => const {};
+  Set<String> build() {
+    _loaded = null;
+    if (ref.watch(authProvider) != null) {
+      _loaded = ref.read(favoritesRepositoryProvider).load().then((ids) {
+        if (ref.mounted) state = ids;
+      });
+    }
+    return const {};
+  }
 
   bool isFavorite(String channelId) => state.contains(channelId);
 
-  void toggle(String channelId) {
-    state = state.contains(channelId)
-        ? ({...state}..remove(channelId))
-        : {...state, channelId};
+  Future<void> toggle(String channelId) async {
+    await _loaded;
+    final adding = !state.contains(channelId);
+    state = adding ? {...state, channelId} : ({...state}..remove(channelId));
+    if (ref.read(authProvider) == null) return;
+    final repo = ref.read(favoritesRepositoryProvider);
+    await (adding ? repo.add(channelId) : repo.remove(channelId));
   }
 }
 
@@ -94,10 +136,19 @@ final favoritesProvider =
 // ---------------------------------------------------------------------------
 class AuthNotifier extends Notifier<AppUser?> {
   @override
-  AppUser? build() => null;
+  AppUser? build() {
+    ref.read(authRepositoryProvider).restoreSession().then((user) {
+      if (ref.mounted && user != null) state = user;
+    });
+    return null;
+  }
 
   Future<void> signInWithEmail(String email, String password) async {
     state = await ref.read(authRepositoryProvider).signInWithEmail(email: email, password: password);
+  }
+
+  Future<void> signUpWithEmail(String email, String password) async {
+    state = await ref.read(authRepositoryProvider).signUpWithEmail(email: email, password: password);
   }
 
   Future<void> signOut() async {
@@ -106,7 +157,7 @@ class AuthNotifier extends Notifier<AppUser?> {
   }
 
   Future<void> deleteAccount() async {
-    await ref.read(authRepositoryProvider).requestAccountDeletion();
+    await ref.read(authRepositoryProvider).deleteAccount();
     state = null;
   }
 }
@@ -125,11 +176,30 @@ final localeProvider = NotifierProvider<LocaleNotifier, Locale?>(LocaleNotifier.
 
 class BlockedUsersNotifier extends Notifier<Map<String, String>> {
   /// userId → kullanıcı adı
-  @override
-  Map<String, String> build() => const {};
+  Future<void>? _loaded;
 
-  void block(String userId, String username) => state = {...state, userId: username};
-  void unblock(String userId) => state = {...state}..remove(userId);
+  @override
+  Map<String, String> build() {
+    _loaded = null;
+    if (ref.watch(authProvider) != null) {
+      _loaded = ref.read(blocksRepositoryProvider).load().then((blocked) {
+        if (ref.mounted) state = blocked;
+      });
+    }
+    return const {};
+  }
+
+  Future<void> block(String userId, String username) async {
+    await _loaded;
+    state = {...state, userId: username};
+    await ref.read(blocksRepositoryProvider).block(userId);
+  }
+
+  Future<void> unblock(String userId) async {
+    await _loaded;
+    state = {...state}..remove(userId);
+    await ref.read(blocksRepositoryProvider).unblock(userId);
+  }
 }
 
 final blockedUsersProvider =

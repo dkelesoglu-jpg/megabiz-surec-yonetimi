@@ -63,7 +63,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('email')), 'deneme@ornek.com');
     await tester.enterText(find.byKey(const Key('password')), 'gizli-sifre');
-    await tester.tap(find.widgetWithText(FilledButton, 'Giriş yap'));
+    await tester.tap(find.byKey(const Key('submit')));
     await tester.pumpAndSettle();
 
     expect(find.text('deneme'), findsOneWidget);

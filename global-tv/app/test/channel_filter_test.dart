@@ -26,22 +26,23 @@ void main() {
     });
   });
 
-  test('tüm demo akışlar HTTPS ve demo olarak işaretli', () {
+  test('tüm demo akışlar HTTPS ve demo olarak işaretli', () async {
+    final repo = DemoChannelRepository();
     for (final c in demoChannels) {
-      expect(Uri.parse(c.streamUrl).scheme, 'https', reason: c.id);
+      expect(Uri.parse(await repo.streamUrl(c.id)).scheme, 'https', reason: c.id);
       expect(c.isDemo, isTrue, reason: c.id);
       expect(c.attribution, isNotNull, reason: c.id);
     }
   });
 
-  test('favori ekle / çıkar', () {
+  test('favori ekle / çıkar', () async {
     final container = ProviderContainer();
     addTearDown(container.dispose);
     final favorites = container.read(favoritesProvider.notifier);
 
-    favorites.toggle('demo-mux-bbb');
+    await favorites.toggle('demo-mux-bbb');
     expect(container.read(favoritesProvider), {'demo-mux-bbb'});
-    favorites.toggle('demo-mux-bbb');
+    await favorites.toggle('demo-mux-bbb');
     expect(container.read(favoritesProvider), isEmpty);
   });
 }

@@ -1,9 +1,12 @@
 import 'models.dart';
 
-/// Ekranlar yalnızca bu arayüzleri bilir. H1'de `Demo…` uygulamaları,
-/// H2'den itibaren `Supabase…` uygulamaları aynı arayüzün arkasına takılır.
+/// Ekranlar yalnızca bu arayüzleri bilir. Demo modunda `Demo…`, Supabase
+/// yapılandırıldığında `Supabase…` uygulamaları kullanılır.
 abstract interface class ChannelRepository {
   Future<List<Channel>> fetchChannels();
+
+  /// Yayın hakkı ve ülke kontrolünden geçen HTTPS HLS adresi.
+  Future<String> streamUrl(String channelId, {String? countryCode});
 }
 
 abstract interface class ChatRepository {
@@ -13,7 +16,23 @@ abstract interface class ChatRepository {
 }
 
 abstract interface class AuthRepository {
+  /// Uygulama açılışında kayıtlı oturumu geri yükler.
+  Future<AppUser?> restoreSession();
   Future<AppUser> signInWithEmail({required String email, required String password});
+  Future<AppUser> signUpWithEmail({required String email, required String password});
   Future<void> signOut();
-  Future<void> requestAccountDeletion();
+  Future<void> deleteAccount();
+}
+
+abstract interface class FavoritesRepository {
+  Future<Set<String>> load();
+  Future<void> add(String channelId);
+  Future<void> remove(String channelId);
+}
+
+abstract interface class BlocksRepository {
+  /// userId → kullanıcı adı
+  Future<Map<String, String>> load();
+  Future<void> block(String userId);
+  Future<void> unblock(String userId);
 }

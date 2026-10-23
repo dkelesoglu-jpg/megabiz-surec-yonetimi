@@ -1,1 +1,3 @@
 #include "Generated.xcconfig"
+#include "../../identity/AppIdentity.xcconfig"
+#include? "LocalSigning.xcconfig"

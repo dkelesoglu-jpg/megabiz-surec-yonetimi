@@ -49,3 +49,4 @@ app.*.map.json
 
 # gen-l10n çıktısı (flutter pub get / gen-l10n ile üretilir)
 lib/l10n/gen/
+ios/Flutter/LocalSigning.xcconfig
