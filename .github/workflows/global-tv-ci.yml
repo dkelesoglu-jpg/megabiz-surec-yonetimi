@@ -41,6 +41,16 @@ jobs:
       - run: flutter analyze
       - run: flutter test
 
+  secrets:
+    name: Gizli anahtar taraması
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: gitleaks (global-tv klasörü)
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks dir global-tv --redact --exit-code 1
+
   database:
     name: Veritabanı kuralları (RLS)
     runs-on: ubuntu-latest
@@ -63,6 +73,28 @@ jobs:
       - name: Edge Functions tip kontrolü
         working-directory: global-tv/supabase/functions
         run: deno check get-stream/index.ts delete-account/index.ts
+
+  admin:
+    name: Yönetim paneli (tip, birim, uçtan uca)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: global-tv/admin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: global-tv/admin/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run typecheck
+      - run: npm test
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          CI: 'true'
 
   android-apk:
     name: Test APK'sı (staging, demo veri)
@@ -89,7 +121,7 @@ jobs:
         with:
           name: globaltv-staging-demo-apk-${{ github.run_number }}
           path: global-tv/app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 30
+          retention-days: 7
 
   android-emulator:
     name: Android emülatör — uçtan uca

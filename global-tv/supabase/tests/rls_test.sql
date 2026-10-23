@@ -97,6 +97,7 @@ select pg_temp.assert((select count(*) from public.reports) = 0, 'C, başkasın�
 reset role;
 
 -- 5) Yasaklı kullanıcı yazamaz
+select pg_temp.login(null);  -- sunucu işlemi (oturum yok)
 update public.profiles set is_banned = true where id = 'cccccccc-0000-4000-8000-000000000003';
 set role authenticated;
 select pg_temp.login('cccccccc-0000-4000-8000-000000000003');
