@@ -90,6 +90,26 @@ test('dil (TR/EN) ve tema (koyu/açık) seçimi', async ({ page }) => {
   await noHorizontalScroll(page);
 });
 
+test('mobil menünün alt kontrolleri görünür ekranda kalır (geniş yazı tipiyle de)', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'yalnızca mobil');
+  await page.goto('/');
+  // Sistem yazı tipi farklı cihazlarda daha geniş olabilir; en kötü durumu zorla.
+  await page.addStyleTag({ content: "*{font-family:'DejaVu Sans','Liberation Sans',sans-serif !important}" });
+  await page.getByLabel('E-posta').fill('admin@demo.local');
+  await page.getByLabel('Şifre').fill('demo1234');
+  await page.getByRole('button', { name: 'Giriş yap' }).click();
+  await page.getByRole('button', { name: 'Menüyü aç' }).click();
+  // CI'da hata İngilizce metinlerle ortaya çıktı: önce dili değiştir
+  await page.getByRole('button', { name: 'en', exact: true }).filter({ visible: true }).first().click();
+  const fits = await page.evaluate(() => {
+    const aside = document.querySelector('aside[role=dialog]')!;
+    return aside.getBoundingClientRect().bottom <= (window.visualViewport?.height ?? innerHeight) + 0.5;
+  });
+  expect(fits).toBe(true);
+  await page.getByRole('button', { name: /^Theme:/ }).filter({ visible: true }).first().click({ timeout: 5000 });
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+});
+
 test('yetkisiz hesap giriş yapamaz', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('E-posta').fill('izleyici@demo.local');

@@ -98,9 +98,10 @@ function UserBox() {
         </div>
         {api.mode === 'demo' && <Badge tone="warning">{t('common.demo')}</Badge>}
       </div>
-      <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" onClick={signOut}><LogOut size={16} aria-hidden /> {t('shell.signOut')}</Button>
-        <Preferences />
+      {/* Dar ekranda (mobil menü) ve geniş yazı tiplerinde sığmazsa alt satıra geçer; düğmeler üst üste binmez. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button variant="ghost" size="sm" className="shrink-0" onClick={signOut}><LogOut size={16} aria-hidden /> {t('shell.signOut')}</Button>
+        <div className="shrink-0"><Preferences /></div>
       </div>
     </div>
   );
@@ -151,12 +152,13 @@ export function Layout({ children }: { children: ReactNode }) {
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} aria-hidden />
-          <aside role="dialog" aria-label={t('shell.menu')} className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col bg-surface shadow-xl">
+          <aside role="dialog" aria-label={t('shell.menu')}
+            className="absolute left-0 top-0 flex h-dvh w-72 max-w-[85vw] flex-col overflow-y-auto bg-surface shadow-xl">
             <div className="flex items-center justify-between pr-2">
               <Brand />
               <Button variant="ghost" size="sm" aria-label={t('shell.closeMenu')} onClick={() => setOpen(false)}><X size={20} /></Button>
             </div>
-            <div className="flex-1 overflow-y-auto px-2"><Nav onNavigate={() => setOpen(false)} /></div>
+            <div className="flex-1 px-2"><Nav onNavigate={() => setOpen(false)} /></div>
             <UserBox />
           </aside>
         </div>
