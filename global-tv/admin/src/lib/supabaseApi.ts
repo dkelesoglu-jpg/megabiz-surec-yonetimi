@@ -1,5 +1,5 @@
 import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
-import { ForbiddenError, ValidationError, type AdminApi } from './api';
+import { ForbiddenError, ValidationError, checkDocument, type AdminApi } from './api';
 import { canEnterPanel } from './permissions';
 import type {
   AdPlacement,
@@ -14,14 +14,31 @@ import type {
   Channel,
   ChannelInput,
   ChatMessage,
+  ChatRoom,
+  KeyCount,
   ModerationAction,
+  ModerationLogEntry,
   Profile,
   Report,
+  ReportData,
   ReportStatus,
   RightInput,
   Role,
+  RoomSettingsInput,
+  Sponsorship,
+  SponsorshipInput,
 } from './types';
-import { validateAdPlacement, validateAnnouncement, validateChannel, validateRight, validateVersion } from './validation';
+import {
+  validateAdPlacement,
+  validateAnnouncement,
+  validateChannel,
+  validateRight,
+  validateRoom,
+  validateSponsorship,
+  validateVersion,
+} from './validation';
+
+const DOCS_BUCKET = 'rights-documents';
 
 type Row = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 
@@ -37,9 +54,15 @@ export class SupabaseAdminApi implements AdminApi {
 
   private fail(error: PostgrestError | null): void {
     if (!error) return;
-    if (error.code === '42501' || /row-level security/i.test(error.message)) throw new ForbiddenError();
-    if (['23505'].includes(error.code)) throw new ValidationError('Bu değer başka bir kayıtta kullanılıyor.');
-    if (['23503', '23514', '22P02', 'P0002'].includes(error.code)) throw new ValidationError(error.message);
+    if (error.code === '42501' || /row-level security/i.test(error.message)) {
+      if (/own role or status/.test(error.message)) throw new ForbiddenError('err.selfChange');
+      if (/last active admin/.test(error.message)) throw new ForbiddenError('err.lastAdmin');
+      if (/restrict an admin/.test(error.message)) throw new ForbiddenError('err.adminOnly');
+      throw new ForbiddenError();
+    }
+    if (error.code === '23505') throw new ValidationError('err.duplicate');
+    if (error.code === 'P0002') throw new ValidationError('err.notFound');
+    if (error.code === '23503') throw new ValidationError('err.categoryUnknown');
     throw new Error(error.message);
   }
 
@@ -52,11 +75,11 @@ export class SupabaseAdminApi implements AdminApi {
   // --- Oturum -------------------------------------------------------------
   async signIn(email: string, password: string): Promise<AdminUser> {
     const { data, error } = await this.db.auth.signInWithPassword({ email, password });
-    if (error || !data.user) throw new ValidationError('E-posta veya şifre hatalı.');
+    if (error || !data.user) throw new ValidationError('err.credentials');
     const user = await this.currentUser();
     if (!user) {
       await this.db.auth.signOut();
-      throw new ForbiddenError('Bu hesabın yönetim paneline erişim yetkisi yok.');
+      throw new ForbiddenError('err.noPanelAccess');
     }
     return user;
   }
@@ -78,21 +101,50 @@ export class SupabaseAdminApi implements AdminApi {
   // --- Pano -----------------------------------------------------------------
   async dashboardStats() {
     const s = await this.rows<Row>(this.db.rpc('admin_dashboard_stats'));
-    const since = new Date(Date.now() - 7 * 86_400_000);
-    const msgs = await this.rows<Row[]>(
-      this.db.from('chat_messages').select('created_at').gte('created_at', since.toISOString()).limit(50_000),
-    );
-    const perDay = new Map<string, number>();
-    for (let i = 6; i >= 0; i--) perDay.set(new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10), 0);
-    for (const m of msgs) {
-      const d = String(m.created_at).slice(0, 10);
-      if (perDay.has(d)) perDay.set(d, (perDay.get(d) ?? 0) + 1);
-    }
     return {
       usersTotal: s.users_total, usersBanned: s.users_banned, usersNew7d: s.users_new_7d,
+      activeUsers1d: s.active_users_1d, activeUsers7d: s.active_users_7d, watchMinutes24h: s.watch_minutes_24h,
       channelsTotal: s.channels_total, channelsLive: s.channels_live, rightsExpiring14d: s.rights_expiring_14d,
       messages24h: s.messages_24h, reportsOpen: s.reports_open,
-      messagesPerDay: [...perDay].map(([date, count]) => ({ date, count })),
+      // watch_sessions okuması reports.read ister; izni olmayana RLS boş sonuç döndürür (grafik sıfır).
+      watchPerDay: await this.watchPerDay(7),
+    };
+  }
+
+  private async watchPerDay(days: number) {
+    const since = lastDays(days)[0]!;
+    const rows = await this.rows<Row[]>(this.db.from('watch_sessions').select('started_at, duration_seconds')
+      .gte('started_at', `${since}T00:00:00Z`).limit(100_000));
+    const m = new Map(lastDays(days).map((d) => [d, 0]));
+    for (const r of rows) {
+      const d = String(r.started_at).slice(0, 10);
+      if (m.has(d)) m.set(d, (m.get(d) ?? 0) + Number(r.duration_seconds));
+    }
+    return [...m].map(([day, secs]) => ({ day, count: Math.round(secs / 60) }));
+  }
+
+  async report(days: number): Promise<ReportData> {
+    const r = await this.rows<Row>(this.db.rpc('admin_report', { p_days: days }));
+    const channels = await this.listChannels().catch(() => [] as Channel[]);
+    const fillDays = (items: Row[]) => {
+      const m = new Map((items ?? []).map((x) => [String(x.day), Number(x.count)]));
+      return lastDays(days).map((day) => ({ day, count: m.get(day) ?? 0 }));
+    };
+    const keys = (items: Row[], field = 'count'): KeyCount[] => (items ?? []).map((x) => ({ key: String(x.key), count: Number(x[field]) }));
+    return {
+      days,
+      signupsPerDay: fillDays(r.signups_per_day),
+      activePerDay: fillDays(r.active_per_day),
+      usersByCountry: keys(r.users_by_country),
+      watchByPlatform: keys(r.watch_by_platform, 'minutes'),
+      watchByChannel: (r.watch_by_channel ?? []).map((x: Row) => ({
+        channelId: x.channel_id, channelName: channels.find((c) => c.id === x.channel_id)?.name ?? x.channel_id,
+        minutes: Number(x.minutes), sessions: Number(x.sessions),
+      })),
+      messagesPerDay: fillDays(r.messages_per_day),
+      reportsByReason: keys(r.reports_by_reason),
+      moderationByAction: keys(r.moderation_by_action),
+      ads: r.ads ? { impressions: Number(r.ads.impressions), clicks: Number(r.ads.clicks) } : null,
     };
   }
 
@@ -154,7 +206,7 @@ export class SupabaseAdminApi implements AdminApi {
     return {
       id: r.id, channelId: r.channel_id, rightsHolder: r.rights_holder, licenseType: r.license_type,
       allowedCountries: r.allowed_countries ?? [], validFrom: r.valid_from, validUntil: r.valid_until,
-      status: r.status, notes: r.notes,
+      status: r.status, notes: r.notes, documentName: r.document_name ?? null,
     };
   }
 
@@ -180,6 +232,23 @@ export class SupabaseAdminApi implements AdminApi {
     return this.toRight(await this.rows<Row>(this.db.from('broadcast_rights').update(this.rightRow(input)).eq('id', id).select().single()));
   }
 
+  async uploadRightDocument(rightId: string, file: File) {
+    checkDocument(file);
+    const path = `${rightId}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
+    const { error } = await this.db.storage.from(DOCS_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
+    if (error) throw /security|policy|unauthorized/i.test(error.message) ? new ForbiddenError() : new Error(error.message);
+    return this.toRight(await this.rows<Row>(this.db.from('broadcast_rights')
+      .update({ document_path: path, document_name: file.name }).eq('id', rightId).select().single()));
+  }
+
+  async rightDocumentUrl(rightId: string) {
+    const row = await this.rows<Row>(this.db.from('broadcast_rights').select('document_path').eq('id', rightId).single());
+    if (!row.document_path) throw new ValidationError('err.notFound');
+    const { data, error } = await this.db.storage.from(DOCS_BUCKET).createSignedUrl(row.document_path, 60);
+    if (error || !data) throw new ForbiddenError();
+    return data.signedUrl;
+  }
+
   // --- Kullanıcılar ----------------------------------------------------------
   async listProfiles(): Promise<Profile[]> {
     const rows = await this.rows<Row[]>(this.db.from('profiles')
@@ -196,6 +265,48 @@ export class SupabaseAdminApi implements AdminApi {
 
   async setRole(userId: string, role: Role) {
     await this.rows(this.db.rpc('admin_set_role', { p_target: userId, p_role: role }));
+  }
+
+  async listModerationLog(): Promise<ModerationLogEntry[]> {
+    const rows = await this.rows<Row[]>(this.db.from('moderation_actions')
+      .select('id, action, reason, message_excerpt, created_at, moderator:profiles!moderation_actions_moderator_id_fkey(username), target:profiles!moderation_actions_target_user_fkey(username)')
+      .order('created_at', { ascending: false }).limit(500));
+    return rows.map((r) => ({
+      id: r.id, moderatorName: r.moderator?.username ?? '—', targetName: r.target?.username ?? '—', action: r.action,
+      reason: r.reason, messageExcerpt: r.message_excerpt, createdAt: r.created_at,
+    }));
+  }
+
+  // --- Topluluk ---------------------------------------------------------------
+  async listRooms(): Promise<ChatRoom[]> {
+    const since = new Date(Date.now() - 86_400_000).toISOString();
+    const [channels, settings, msgs, reports] = await Promise.all([
+      this.rows<Row[]>(this.db.from('channels').select('id, name').order('sort_order')),
+      this.rows<Row[]>(this.db.from('chat_room_settings').select('*')),
+      this.rows<Row[]>(this.db.from('chat_messages').select('channel_id, user_id').gte('created_at', since).limit(50_000)),
+      this.rows<Row[]>(this.db.from('reports').select('status, message:chat_messages(channel_id)').eq('status', 'open')),
+    ]);
+    return channels.map((c) => {
+      const st = settings.find((x) => x.channel_id === c.id);
+      const recent = msgs.filter((m) => m.channel_id === c.id);
+      return {
+        channelId: c.id, channelName: c.name, isLocked: Boolean(st?.is_locked), slowModeSeconds: st?.slow_mode_seconds ?? 0,
+        messages24h: recent.length, participants24h: new Set(recent.map((m) => m.user_id)).size,
+        openReports: reports.filter((r) => r.message?.channel_id === c.id).length,
+      };
+    });
+  }
+
+  async updateRoom(channelId: string, input: RoomSettingsInput) {
+    validateRoom(input);
+    await this.rows(this.db.from('chat_room_settings').upsert({
+      channel_id: channelId, is_locked: input.isLocked, slow_mode_seconds: input.slowModeSeconds, updated_at: new Date().toISOString(),
+    }));
+  }
+
+  async deleteMessage(messageId: string) {
+    const rows = await this.rows<Row[]>(this.db.from('chat_messages').delete().eq('id', Number(messageId)).select('id'));
+    if (rows.length === 0) throw new ForbiddenError();
   }
 
   // --- Moderasyon -------------------------------------------------------------
@@ -246,6 +357,28 @@ export class SupabaseAdminApi implements AdminApi {
     };
     const q = id ? this.db.from('ad_placements').update(row).eq('id', id) : this.db.from('ad_placements').insert(row);
     return this.toAd(await this.rows<Row>(q.select().single()));
+  }
+
+  private toSponsorship(r: Row): Sponsorship {
+    return {
+      id: r.id, sponsorName: r.sponsor_name, titleTr: r.title_tr, titleEn: r.title_en, placement: r.placement,
+      channelId: r.channel_id, clickUrl: r.click_url, startsAt: r.starts_at, endsAt: r.ends_at, isActive: r.is_active, notes: r.notes,
+    };
+  }
+
+  async listSponsorships() {
+    return (await this.rows<Row[]>(this.db.from('sponsorships').select('*').order('starts_at', { ascending: false })))
+      .map((r) => this.toSponsorship(r));
+  }
+
+  async saveSponsorship(id: string | null, i: SponsorshipInput) {
+    validateSponsorship(i);
+    const row = {
+      sponsor_name: i.sponsorName, title_tr: i.titleTr, title_en: i.titleEn, placement: i.placement, channel_id: i.channelId,
+      click_url: i.clickUrl, starts_at: i.startsAt, ends_at: i.endsAt, is_active: i.isActive, notes: i.notes,
+    };
+    const q = id ? this.db.from('sponsorships').update(row).eq('id', id) : this.db.from('sponsorships').insert(row);
+    return this.toSponsorship(await this.rows<Row>(q.select().single()));
   }
 
   // --- Ayarlar ve duyurular ----------------------------------------------------
@@ -308,13 +441,19 @@ export class SupabaseAdminApi implements AdminApi {
     return rows.map((r) => ({
       id: String(r.id), actorName: r.actor_id ? names.get(r.actor_id) ?? r.actor_id : null, action: r.action,
       entity: r.entity, entityId: r.entity_id, createdAt: r.created_at,
-      summary: summarize(r),
+      label: auditLabel(r), detail: r.action === 'delete' && r.entity === 'chat_messages' ? r.payload?.old?.body ?? null : null,
     }));
   }
 }
 
-function summarize(r: Row): string {
-  const n = r.payload?.new ?? {};
-  const label = n.name ?? n.title_tr ?? n.username ?? n.rights_holder ?? n.key ?? r.entity_id ?? '';
-  return `${r.entity} ${r.action}${label ? `: ${label}` : ''}`;
+function auditLabel(r: Row): string {
+  const n = r.payload?.new ?? r.payload?.old ?? {};
+  return String(n.name ?? n.title_tr ?? n.sponsor_name ?? n.username ?? n.author_name ?? n.rights_holder ?? n.key ?? r.entity_id ?? '');
+}
+
+/** Bugün dahil son `days` günün tarihleri (YYYY-MM-DD, eskiden yeniye). */
+function lastDays(days: number): string[] {
+  const out: string[] = [];
+  for (let d = days - 1; d >= 0; d--) out.push(new Date(Date.now() - d * 86_400_000).toISOString().slice(0, 10));
+  return out;
 }

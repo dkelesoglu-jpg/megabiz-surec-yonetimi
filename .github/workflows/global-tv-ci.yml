@@ -19,6 +19,10 @@ on:
         type: boolean
         default: false
 
+# En az yetki: iş akışı depoya yalnızca okuma erişimiyle çalışır.
+permissions:
+  contents: read
+
 env:
   FLUTTER_VERSION: 3.47.7
 

@@ -1,16 +1,23 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { PERMISSIONS, ROLE_PERMISSIONS, can, canEnterPanel } from '../src/lib/permissions';
 import type { Role } from '../src/lib/types';
 
 // Arayüzdeki izin listesi, sunucudaki role_permissions tablosuyla birebir aynı olmalı.
 function serverPermissions(): Map<string, Set<string>> {
-  const sql = readFileSync(resolve(__dirname, '../../supabase/migrations/20261025000100_admin_panel.sql'), 'utf8');
-  const block = sql.slice(sql.indexOf('insert into public.role_permissions'), sql.indexOf(') as t(r, p);'));
+  const dir = resolve(__dirname, '../../supabase/migrations');
   const map = new Map<string, Set<string>>();
-  for (const [, role, perm] of block.matchAll(/\('(\w+)', '([\w.]+)'\)/g)) {
-    if (!map.has(role!)) map.set(role!, new Set());
-    map.get(role!)!.add(perm!);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()) {
+    const sql = readFileSync(resolve(dir, file), 'utf8');
+    let from = 0;
+    while ((from = sql.indexOf('insert into public.role_permissions', from)) >= 0) {
+      const block = sql.slice(from, sql.indexOf(') as t(r, p);', from));
+      for (const [, role, perm] of block.matchAll(/\('(\w+)', '([\w.]+)'\)/g)) {
+        if (!map.has(role!)) map.set(role!, new Set());
+        map.get(role!)!.add(perm!);
+      }
+      from += block.length;
+    }
   }
   return map;
 }

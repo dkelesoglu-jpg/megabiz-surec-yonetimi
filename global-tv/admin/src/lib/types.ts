@@ -45,9 +45,11 @@ export interface BroadcastRight {
   validUntil: string; // YYYY-MM-DD
   status: RightsStatus;
   notes: string | null;
+  /** Yüklenmiş yayın hakkı belgesinin adı (özel depoda). */
+  documentName: string | null;
 }
 
-export type RightInput = Omit<BroadcastRight, 'id'>;
+export type RightInput = Omit<BroadcastRight, 'id' | 'documentName'>;
 
 export interface Profile {
   id: string;
@@ -147,8 +149,80 @@ export interface AuditEntry {
   action: 'insert' | 'update' | 'delete';
   entity: string;
   entityId: string | null;
-  summary: string;
+  /** Kaydın okunabilir adı (kanal adı, kullanıcı adı…). */
+  label: string;
+  /** Ek ayrıntı (ör. moderasyon gerekçesi, rol değişikliği). */
+  detail: string | null;
   createdAt: string;
+}
+
+export type LogAction = 'warn' | 'mute' | 'unmute' | 'ban' | 'unban' | 'hide_message' | 'unhide_message' | 'delete_message';
+
+export interface ModerationLogEntry {
+  id: string;
+  moderatorName: string;
+  targetName: string;
+  action: LogAction;
+  reason: string | null;
+  messageExcerpt: string | null;
+  createdAt: string;
+}
+
+export interface ChatRoom {
+  channelId: string;
+  channelName: string;
+  isLocked: boolean;
+  slowModeSeconds: number;
+  messages24h: number;
+  participants24h: number;
+  openReports: number;
+}
+
+export interface RoomSettingsInput {
+  isLocked: boolean;
+  slowModeSeconds: number;
+}
+
+export type SponsorPlacement = 'home_featured' | 'channel_banner' | 'chat_pinned';
+
+export interface Sponsorship {
+  id: string;
+  sponsorName: string;
+  titleTr: string;
+  titleEn: string;
+  placement: SponsorPlacement;
+  channelId: string | null;
+  clickUrl: string | null;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  notes: string | null;
+}
+
+export type SponsorshipInput = Omit<Sponsorship, 'id'>;
+
+export interface DayCount {
+  day: string;
+  count: number;
+}
+
+export interface KeyCount {
+  key: string;
+  count: number;
+}
+
+export interface ReportData {
+  days: number;
+  signupsPerDay: DayCount[];
+  activePerDay: DayCount[];
+  usersByCountry: KeyCount[];
+  watchByPlatform: KeyCount[];
+  watchByChannel: { channelId: string; channelName: string; minutes: number; sessions: number }[];
+  messagesPerDay: DayCount[];
+  reportsByReason: KeyCount[];
+  moderationByAction: KeyCount[];
+  /** Yalnızca ads.manage izni olanlara. */
+  ads: { impressions: number; clicks: number } | null;
 }
 
 export interface DashboardStats {
@@ -160,6 +234,9 @@ export interface DashboardStats {
   rightsExpiring14d: number;
   messages24h: number;
   reportsOpen: number;
-  /** Son 7 günün günlük mesaj sayıları (eskiden yeniye). */
-  messagesPerDay: { date: string; count: number }[];
+  activeUsers1d: number;
+  activeUsers7d: number;
+  watchMinutes24h: number;
+  /** Son 7 günün günlük izlenme dakikası (eskiden yeniye). */
+  watchPerDay: DayCount[];
 }

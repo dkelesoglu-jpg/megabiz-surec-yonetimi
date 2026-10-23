@@ -1,147 +1,149 @@
-import { Ban, Eye, EyeOff, Flag, MicOff, XCircle } from 'lucide-react';
+import { Ban, MicOff, ShieldCheck, Undo2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { LoadState, useLoad, useToast } from '../components/feedback';
-import { Badge, Button, Card, EmptyState, PageHeader, Select, Tabs, TextInput } from '../components/ui';
-import type { ChatMessage, ModerationAction, Report, ReportReason, ReportStatus } from '../lib/types';
-import { ModerateDialog } from './UsersPage';
+import { ModerateDialog } from '../components/ModerateDialog';
+import { Badge, Button, Card, DataList, Modal, PageHeader, Select, Tabs, TextInput } from '../components/ui';
+import { useI18n } from '../i18n/I18nProvider';
+import { ROLES } from '../lib/permissions';
+import type { ModerationAction, Profile, Role } from '../lib/types';
 
-const REASONS: Record<ReportReason, string> = { spam: 'Spam', abuse: 'Taciz / hakaret', hate: 'Nefret söylemi', sexual: 'Cinsel içerik', other: 'Diğer' };
-const STATUS: Record<ReportStatus, string> = { open: 'Açık', actioned: 'İşlem yapıldı', dismissed: 'Reddedildi' };
+type Status = 'active' | 'muted' | 'banned';
+
+export function userStatus(p: Profile, now = Date.now()): Status {
+  if (p.isBanned) return 'banned';
+  if (p.mutedUntil && Date.parse(p.mutedUntil) > now) return 'muted';
+  return 'active';
+}
+
+const ROLE_TONE: Record<Role, 'neutral' | 'accent' | 'warning' | 'critical'> = { user: 'neutral', moderator: 'warning', editor: 'accent', admin: 'critical' };
 
 export function ModerationPage() {
-  const { api, can } = useAuth();
-  const [tab, setTab] = useState<'reports' | 'messages'>('reports');
-  const canMessages = can('chat.moderate');
-  const { data, error, reload } = useLoad(async () => {
-    const [reports, messages, channels] = await Promise.all([
-      api.listReports(),
-      canMessages ? api.listMessages() : Promise.resolve([] as ChatMessage[]),
-      can('channels.manage') ? api.listChannels() : Promise.resolve([]),
-    ]);
-    return { reports, messages, channels };
-  });
-  const channelName = (id: string) => data?.channels.find((c) => c.id === id)?.name ?? 'Kanal';
-
+  const { t } = useI18n();
+  const [tab, setTab] = useState<'users' | 'log'>('users');
   return (
     <>
-      <PageHeader title="Sohbet moderasyonu" description="Şikâyetleri inceleyin, mesajları gizleyin, kuralları ihlal eden kullanıcıları susturun veya yasaklayın." />
-      <Tabs value={tab} onChange={setTab} items={[
-        { value: 'reports', label: `Şikâyetler${data ? ` (${data.reports.filter((r) => r.status === 'open').length} açık)` : ''}` },
-        ...(canMessages ? [{ value: 'messages' as const, label: 'Mesaj inceleme' }] : []),
-      ]} />
-      {!data ? <LoadState error={error} /> : tab === 'reports'
-        ? <ReportsTab reports={data.reports} messages={data.messages} channelName={channelName} reload={reload} />
-        : <MessagesTab messages={data.messages} channelName={channelName} reload={reload} />}
+      <PageHeader title={t('mod.title')} description={t('mod.subtitle')} />
+      <Tabs value={tab} onChange={setTab} items={[{ value: 'users', label: t('mod.tabUsers') }, { value: 'log', label: t('mod.tabLog') }]} />
+      {tab === 'users' ? <UsersTab /> : <LogTab />}
     </>
   );
 }
 
-function ReportsTab({ reports, messages, channelName, reload }: { reports: Report[]; messages: ChatMessage[]; channelName: (id: string) => string; reload: () => void }) {
-  const { api, can } = useAuth();
-  const toast = useToast();
-  const [status, setStatus] = useState<ReportStatus | ''>('open');
-  const [moderate, setModerate] = useState<{ profile: { id: string; username: string }; action: ModerationAction } | null>(null);
-  const rows = reports.filter((r) => !status || r.status === status);
+function StatusBadge({ p }: { p: Profile }) {
+  const { t, fmtDateTime } = useI18n();
+  const s = userStatus(p);
+  if (s === 'banned') return <Badge tone="critical" icon={<Ban size={12} aria-hidden />}>{t('mod.st.banned')}</Badge>;
+  if (s === 'muted') return <Badge tone="warning" icon={<MicOff size={12} aria-hidden />}>{t('mod.st.muted', { until: fmtDateTime(p.mutedUntil!) })}</Badge>;
+  return <Badge tone="good">{t('mod.st.active')}</Badge>;
+}
 
-  async function resolve(r: Report, s: ReportStatus, hide: boolean) {
+function UsersTab() {
+  const { api, user, can } = useAuth();
+  const { t } = useI18n();
+  const toast = useToast();
+  const { data, error, reload } = useLoad(() => api.listProfiles());
+  const [query, setQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<Role | ''>('');
+  const [statusFilter, setStatusFilter] = useState<Status | ''>('');
+  const [pending, setPending] = useState<{ profile: Profile; action: ModerationAction } | null>(null);
+  const [roleChange, setRoleChange] = useState<{ profile: Profile; role: Role } | null>(null);
+
+  const rows = useMemo(() => (data ?? []).filter((p) =>
+    (!query || p.username.toLowerCase().includes(query.toLowerCase())) &&
+    (!roleFilter || p.role === roleFilter) &&
+    (!statusFilter || userStatus(p) === statusFilter)), [data, query, roleFilter, statusFilter]);
+
+  async function applyRole() {
+    if (!roleChange) return;
     try {
-      await api.resolveReport(r.id, s, hide);
-      toast.notify(hide ? 'Mesaj gizlendi, şikâyet kapatıldı.' : s === 'dismissed' ? 'Şikâyet reddedildi.' : 'Şikâyet güncellendi.');
+      await api.setRole(roleChange.profile.id, roleChange.role);
+      toast.notify(t('mod.roleChanged', { name: roleChange.profile.username, role: t(`role.${roleChange.role}`) }));
+      setRoleChange(null);
       reload();
     } catch (e) {
       toast.fail(e);
     }
   }
 
+  const canModerate = can('users.moderate');
+  const canRoles = can('users.manage_roles');
+  if (!data) return <LoadState error={error} />;
+
   return (
-    <Card>
-      <div className="mb-3 max-w-xs">
-        <Select aria-label="Şikâyet durumu" value={status} onChange={(e) => setStatus(e.target.value as ReportStatus | '')}>
-          <option value="open">Açık</option>
-          <option value="actioned">İşlem yapıldı</option>
-          <option value="dismissed">Reddedildi</option>
-          <option value="">Tümü</option>
-        </Select>
-      </div>
-      {rows.length === 0 ? <EmptyState>Bu durumda şikâyet yok.</EmptyState> : (
-        <ul className="flex flex-col gap-3">
-          {rows.map((r) => {
-            const m = messages.find((x) => x.id === r.messageId);
+    <>
+      <Card title={t('mod.userCount', { n: data.length })}>
+        <div className="mb-3 grid gap-2 sm:grid-cols-[1fr_180px_180px]">
+          <TextInput aria-label={t('common.search')} placeholder={t('mod.searchUser')} value={query} onChange={(e) => setQuery(e.target.value)} />
+          <Select aria-label={t('mod.colRole')} value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as Role | '')}>
+            <option value="">{t('mod.allRoles')}</option>
+            {ROLES.map((r) => <option key={r} value={r}>{t(`role.${r}`)}</option>)}
+          </Select>
+          <Select aria-label={t('common.status')} value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as Status | '')}>
+            <option value="">{t('mod.allStatuses')}</option>
+            <option value="active">{t('mod.st.active')}</option>
+            <option value="muted">{t('mod.st.mutedShort')}</option>
+            <option value="banned">{t('mod.st.banned')}</option>
+          </Select>
+        </div>
+        <DataList rows={rows} rowKey={(p) => p.id} empty={t('common.noMatch')}
+          columns={[
+            { header: t('common.user'), primary: true, cell: (p) => <span className="font-medium">{p.username}{p.id === user?.id && <span className="text-ink-3"> {t('common.you')}</span>}</span> },
+            { header: t('mod.colRole'), cell: (p) => <Badge tone={ROLE_TONE[p.role]}>{t(`role.${p.role}`)}</Badge> },
+            { header: t('common.status'), cell: (p) => <StatusBadge p={p} /> },
+            { header: t('common.country'), cell: (p) => p.countryCode ?? '—' },
+            { header: t('mod.colJoined'), cell: (p) => <span className="tabular">{p.createdAt.slice(0, 10)}</span> },
+          ]}
+          actions={(p) => {
+            if (p.id === user?.id) return <span className="text-xs text-ink-3">{t('common.ownAccount')}</span>;
+            const s = userStatus(p);
             return (
-              <li key={r.id} className="rounded-lg border border-line p-3">
-                <div className="mb-2 flex flex-wrap items-center gap-2 text-sm">
-                  <Badge tone="critical" icon={<Flag size={12} aria-hidden />}>{REASONS[r.reason]}</Badge>
-                  <Badge>{STATUS[r.status]}</Badge>
-                  <span className="text-ink-3">Şikâyet eden: {r.reporterName} · {new Date(r.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}</span>
-                </div>
-                {m ? (
-                  <blockquote className="rounded-md bg-surface-2 px-3 py-2 text-sm">
-                    <p className="mb-1 text-xs text-ink-3">{m.authorName} · {channelName(m.channelId)} {m.isHidden && <Badge tone="warning">Gizli</Badge>}</p>
-                    <p className="break-words">{m.body}</p>
-                  </blockquote>
-                ) : <p className="text-sm text-ink-3">Mesaj içeriği görüntülenemiyor.</p>}
-                {r.details && <p className="mt-2 text-sm text-ink-2">Not: {r.details}</p>}
-                {r.status === 'open' && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {can('chat.moderate') && m && !m.isHidden && <Button size="sm" variant="primary" onClick={() => resolve(r, 'actioned', true)}><EyeOff size={14} aria-hidden /> Mesajı gizle ve kapat</Button>}
-                    <Button size="sm" onClick={() => resolve(r, 'actioned', false)}>İşlem yapıldı</Button>
-                    <Button size="sm" onClick={() => resolve(r, 'dismissed', false)}><XCircle size={14} aria-hidden /> Reddet</Button>
-                    {can('users.moderate') && m?.userId && (
-                      <>
-                        <Button size="sm" onClick={() => setModerate({ profile: { id: m.userId!, username: m.authorName }, action: 'mute' })}><MicOff size={14} aria-hidden /> Yazarı sustur</Button>
-                        <Button size="sm" variant="danger" onClick={() => setModerate({ profile: { id: m.userId!, username: m.authorName }, action: 'ban' })}><Ban size={14} aria-hidden /> Yazarı yasakla</Button>
-                      </>
-                    )}
-                  </div>
+              <>
+                {canModerate && s === 'active' && <Button size="sm" onClick={() => setPending({ profile: p, action: 'mute' })}><MicOff size={14} aria-hidden /> {t('mod.mute')}</Button>}
+                {canModerate && s === 'muted' && <Button size="sm" onClick={() => setPending({ profile: p, action: 'unmute' })}><Undo2 size={14} aria-hidden /> {t('mod.unmute')}</Button>}
+                {canModerate && s !== 'banned' && <Button size="sm" variant="danger" onClick={() => setPending({ profile: p, action: 'ban' })}><Ban size={14} aria-hidden /> {t('mod.ban')}</Button>}
+                {canModerate && s === 'banned' && <Button size="sm" onClick={() => setPending({ profile: p, action: 'unban' })}><Undo2 size={14} aria-hidden /> {t('mod.unban')}</Button>}
+                {canRoles && (
+                  <Select aria-label={t('mod.roleOf', { name: p.username })} className="h-8 w-40 py-0 text-xs" value={p.role}
+                    onChange={(e) => setRoleChange({ profile: p, role: e.target.value as Role })}>
+                    {ROLES.map((r) => <option key={r} value={r}>{t(`role.${r}`)}</option>)}
+                  </Select>
                 )}
-              </li>
+              </>
             );
-          })}
-        </ul>
+          }}
+        />
+      </Card>
+
+      {pending && <ModerateDialog {...pending} onClose={() => setPending(null)} onDone={() => { setPending(null); reload(); }} />}
+
+      {roleChange && (
+        <Modal open title={t('mod.roleChange')} onClose={() => setRoleChange(null)}
+          footer={<><Button onClick={() => setRoleChange(null)}>{t('common.cancel')}</Button><Button variant="primary" onClick={applyRole}><ShieldCheck size={16} aria-hidden /> {t('common.confirm')}</Button></>}>
+          <p className="text-sm">{t('mod.roleChangeBody', { name: roleChange.profile.username, from: t(`role.${roleChange.profile.role}`), to: t(`role.${roleChange.role}`) })}</p>
+          {roleChange.role !== 'user' && <p className="mt-2 text-sm text-ink-2">{t('mod.roleChangePanel')}</p>}
+        </Modal>
       )}
-      {moderate && <ModerateDialog {...moderate} onClose={() => setModerate(null)} onDone={() => { setModerate(null); reload(); }} />}
-    </Card>
+    </>
   );
 }
 
-function MessagesTab({ messages, channelName, reload }: { messages: ChatMessage[]; channelName: (id: string) => string; reload: () => void }) {
+function LogTab() {
   const { api } = useAuth();
-  const toast = useToast();
-  const [query, setQuery] = useState('');
-  const [onlyHidden, setOnlyHidden] = useState(false);
-  const rows = useMemo(() => messages.filter((m) =>
-    (!onlyHidden || m.isHidden) && (!query || `${m.body} ${m.authorName}`.toLowerCase().includes(query.toLowerCase()))), [messages, query, onlyHidden]);
-
-  async function toggle(m: ChatMessage) {
-    try {
-      await api.setMessageHidden(m.id, !m.isHidden);
-      toast.notify(m.isHidden ? 'Mesaj yeniden gösteriliyor.' : 'Mesaj gizlendi.');
-      reload();
-    } catch (e) {
-      toast.fail(e);
-    }
-  }
-
+  const { t, fmtDateTime } = useI18n();
+  const { data, error } = useLoad(() => api.listModerationLog());
+  if (!data) return <LoadState error={error} />;
   return (
     <Card>
-      <div className="mb-3 flex flex-wrap items-center gap-3">
-        <div className="min-w-0 flex-1"><TextInput aria-label="Mesaj ara" placeholder="Mesaj veya kullanıcı ara" value={query} onChange={(e) => setQuery(e.target.value)} /></div>
-        <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={onlyHidden} onChange={(e) => setOnlyHidden(e.target.checked)} /> Yalnızca gizlenenler</label>
-      </div>
-      {rows.length === 0 ? <EmptyState>Mesaj yok.</EmptyState> : (
-        <ul className="divide-y divide-line">
-          {rows.map((m) => (
-            <li key={m.id} className="flex flex-wrap items-start justify-between gap-2 py-2.5">
-              <div className="min-w-0 flex-1">
-                <p className="text-xs text-ink-3">{m.authorName} · {channelName(m.channelId)} · {new Date(m.createdAt).toLocaleString('tr-TR', { dateStyle: 'short', timeStyle: 'short' })}</p>
-                <p className={m.isHidden ? 'break-words text-sm text-ink-3 line-through' : 'break-words text-sm'}>{m.body}</p>
-              </div>
-              <Button size="sm" onClick={() => toggle(m)}>{m.isHidden ? <><Eye size={14} aria-hidden /> Göster</> : <><EyeOff size={14} aria-hidden /> Gizle</>}</Button>
-            </li>
-          ))}
-        </ul>
-      )}
+      <DataList rows={data} rowKey={(l) => l.id} empty={t('mod.logEmpty')}
+        columns={[
+          { header: t('mod.colAction'), primary: true, cell: (l) => <span className="font-medium">{t(`act.${l.action}`)}</span> },
+          { header: t('mod.colTarget'), cell: (l) => l.targetName },
+          { header: t('mod.colModerator'), cell: (l) => l.moderatorName },
+          { header: t('common.reason'), cell: (l) => <span className="break-words text-ink-2">{l.reason ?? (l.messageExcerpt ? `“${l.messageExcerpt}”` : '—')}</span> },
+          { header: t('common.time'), cell: (l) => <span className="tabular whitespace-nowrap text-xs">{fmtDateTime(l.createdAt)}</span> },
+        ]}
+      />
     </Card>
   );
 }

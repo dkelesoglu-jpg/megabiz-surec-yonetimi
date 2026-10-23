@@ -71,3 +71,20 @@ Görünürlük değişikliği yalnızca depo sahibi tarafından GitHub arayüzü
 ## 7.5 Bu denetimle birlikte yapılan önleyici değişiklikler (yalnızca Global TV dalında)
 - CI'a **gizli anahtar taraması** (gitleaks) eklendi: Global TV klasöründe anahtar bulunursa CI kırmızı olur
 - Test APK'larının saklama süresi 30 günden **7 güne** indirildi
+
+## 7.6 Yeniden denetim — 23 Ekim 2026 (yönetim paneli geliştirmesi öncesi)
+
+| Kontrol | Sonuç |
+|---|---|
+| Depo görünürlüğü | ⚠️ Hâlâ **herkese açık** (`visibility: public`). Değişiklik yapılmadı; onay bekleniyor (G1) |
+| Tüm geçmiş (7 dal, yönetim paneli commitleri dahil), gitleaks | ✅ Bulgu yok |
+| CI dosyası (`.github/workflows/global-tv-ci.yml`) | ✅ Hiçbir gizli değişken (`secrets.*`) kullanılmıyor. **Sertleştirildi:** iş akışı artık açıkça `permissions: contents: read` ile, yani yalnızca okuma yetkisiyle çalışıyor |
+| Test APK'ları (9 adet, 242 MB) | ✅ APK'lar `env/staging.example.json` ile derleniyor; Supabase adresi ve anahtarı **boş**, uygulama demo modunda. İçlerinde gizli bilgi yok. Herkese açık depoda herkes indirebilir (G2) |
+| APK imzası | ℹ️ Test APK'ları CI makinesinin geçici hata ayıklama anahtarıyla imzalanıyor. Gerçek yükleme anahtarı depoda yok ve oluşturulmadı |
+| Yönetim paneli | ✅ Yalnızca publishable key okur (`VITE_SUPABASE_PUBLISHABLE_KEY`); `.env.local` git dışında; şablon boş |
+
+### Depoyu gizli yapmanın geliştirme sürecine etkisi (özet)
+- **CI:** Linux işleri (analiz, testler, veritabanı, panel, APK) gönderim başına yaklaşık 12 dakika; ayda ~100 gönderimle ~1.200 dk → 2.000 dk kotasının altında. iOS testi (~10 dk × 10 katsayı) elle ve ayda en fazla 4–6 kez.
+- **Artefakt deposu:** 500 MB kotası; 7 günlük saklama ile tahminen 150–250 MB.
+- **Kota aşılırsa:** Ödeme yöntemi tanımlı değilse **ücret çıkmaz**; yalnızca işler ay sonuna kadar durur. Bu durumda iOS/Android emülatör testleri yerel makinede çalıştırılabilir.
+- **Geliştirme:** Kod okuma/yazma ve bu oturumun çalışması etkilenmez.

@@ -1,6 +1,6 @@
 # Global TV — Yönetim Paneli (web)
 
-Flutter uygulamasından bağımsız, mobil uyumlu web yönetim paneli.
+Flutter uygulamasından bağımsız, mobil uyumlu web yönetim paneli. **Türkçe ve İngilizce**; koyu (varsayılan) ve açık tema.
 React 19 + TypeScript + Vite + Tailwind CSS; veri katmanı Supabase'e hazır.
 
 ## Çalıştırma
@@ -22,13 +22,14 @@ Panel **yalnızca publishable key** kullanır; `service_role` / secret anahtar p
 
 | Modül | Yol | Gerekli izin |
 |---|---|---|
-| Pano (kullanıcı, kanal, sohbet istatistikleri) | `/` | `dashboard.read` |
-| Kanal yönetimi + kategoriler | `/channels` | `channels.manage` |
-| Yayın hakları (ülke bazlı izin, geçerlilik, 14 gün uyarısı, ülke görünümü) | `/rights` | `rights.manage` |
-| Kullanıcı yönetimi (durum, susturma, yasaklama, rol) | `/users` | `users.read` (+ `users.moderate`, `users.manage_roles`) |
-| Sohbet moderasyonu (şikâyet kuyruğu, mesaj inceleme) | `/moderation` | `reports.manage` (+ `chat.moderate`) |
-| Reklam alanları | `/ads` | `ads.manage` |
-| Sistem ayarları (dil, sürüm, bakım modu) + duyurular | `/settings` | görüntüleme `dashboard.read`; düzenleme `settings.manage` / `announcements.manage` |
+| Pano: toplam / aktif kullanıcı, yayındaki kanallar, izlenme süresi, günlük izlenme grafiği | `/` | `dashboard.read` |
+| Kanal yönetimi: ekleme, düzenleme, ülke, yayın dili, kategori, yayın adresi (https) + kategori yönetimi | `/channels` | `channels.manage` |
+| Yayın lisansları: hak belgesi yükleme (özel depo), tarihler, ülke bazlı coğrafi kısıt, 14 gün uyarısı, ülke görünümü | `/licenses` | `rights.manage` |
+| Topluluk: canlı sohbet odaları (kilit, yavaş mod), mesajlar/yorumlar (gizle, sil), kullanıcı şikâyetleri | `/community` | `community.manage` (+ `chat.moderate`, `reports.manage`) |
+| Moderasyon: kullanıcı engelleme/susturma, moderatör rolleri, moderasyon işlem kayıtları | `/moderation` | `users.read` (+ `users.moderate`, `users.manage_roles`) |
+| Reklam yönetimi: AdMob reklam alanları + sponsorlu içerik | `/ads` | `ads.manage` |
+| Raporlama: kullanıcı, yayın, sohbet, reklam istatistikleri; 7/30/90 gün; CSV | `/reports` | `reports.read` (reklam bölümü `ads.manage`) |
+| Sistem ayarları: uygulama dilleri, sürümler, bakım modu, duyurular | `/settings` | görüntüleme `dashboard.read`; düzenleme `settings.manage` / `announcements.manage` |
 | Denetim kaydı | `/audit` | `audit.read` |
 
 ## Roller
@@ -36,8 +37,8 @@ Panel **yalnızca publishable key** kullanır; `service_role` / secret anahtar p
 | Rol | Yetkiler |
 |---|---|
 | Yönetici (`admin`) | Hepsi |
-| İçerik yöneticisi (`editor`) | Pano, kanallar, yayın hakları, duyurular |
-| Moderatör (`moderator`) | Pano, kullanıcıları görme, susturma/yasaklama, şikâyetler, mesaj gizleme |
+| İçerik yöneticisi (`editor`) | Pano, kanallar, yayın lisansları, duyurular, raporlar (reklam hariç) |
+| Moderatör (`moderator`) | Pano, topluluk (odalar, mesaj gizleme/silme, şikâyetler), kullanıcı engelleme/susturma, işlem kayıtları, raporlar (reklam hariç) |
 | Kullanıcı (`user`) | Panele giremez |
 
 ## Güvenlik — üç katman
@@ -63,5 +64,6 @@ PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npm run test:e2e   # tarayıcı: masa
 ## Henüz yapılmayanlar
 - Gerçek Supabase'e karşı çalıştırma (ayrı Supabase hesabı bekleniyor)
 - Yönetici hesapları için MFA zorunluluğu (Supabase MFA, gerçek sunucuya geçişte)
-- Yayın hakkı belge yükleme (Supabase Storage, özel bucket)
+- Mobil uygulamanın izlenme/aktiflik verisi göndermesi (`watch_sessions`, `touch_activity`) ve oda kilidi/yavaş mod mesajlarını göstermesi
+- Reklam istatistiklerinin AdMob'dan alınması (AdMob hesabı onaya bağlı)
 - Panelin dağıtımı (barındırma yeri ürün sahibinin kararı; canlıya dağıtım yapılmadı)

@@ -1,11 +1,11 @@
 import { ValidationError } from '../src/lib/api';
 import { addDays, channelHasValidRights, daysBetween, parseCountries, rightsHealth } from '../src/lib/rights';
 import type { BroadcastRight } from '../src/lib/types';
-import { compareVersions, validateChannel, validateRight, validateVersion } from '../src/lib/validation';
+import { compareVersions, validateChannel, validateRight, validateRoom, validateSponsorship, validateVersion } from '../src/lib/validation';
 
 const right = (over: Partial<BroadcastRight> = {}): BroadcastRight => ({
   id: 'r', channelId: 'c', rightsHolder: 'Yayıncı A.Ş.', licenseType: 'direct_agreement', allowedCountries: ['TR'],
-  validFrom: '2026-10-01', validUntil: '2026-12-31', status: 'verified', notes: null, ...over,
+  validFrom: '2026-10-01', validUntil: '2026-12-31', status: 'verified', notes: null, documentName: null, ...over,
 });
 
 describe('yayın hakkı durumu', () => {
@@ -51,9 +51,9 @@ describe('doğrulama', () => {
   });
 
   it('yayın hakkı tarih ve ülke kuralları', () => {
-    expect(() => validateRight(right({ validUntil: '2026-01-01' }))).toThrow('Bitiş tarihi');
-    expect(() => validateRight(right({ allowedCountries: [] }))).toThrow('En az bir ülke');
-    expect(() => validateRight(right({ allowedCountries: ['TRK'] }))).toThrow('Geçersiz ülke');
+    expect(() => validateRight(right({ validUntil: '2026-01-01' }))).toThrow('err.dateOrder');
+    expect(() => validateRight(right({ allowedCountries: [] }))).toThrow('err.countriesRequired');
+    expect(() => validateRight(right({ allowedCountries: ['TRK'] }))).toThrow('err.countryInvalid');
   });
 
   it('sürüm karşılaştırma', () => {
@@ -61,5 +61,21 @@ describe('doğrulama', () => {
     expect(() => validateVersion('1.0.0', '1.1.0')).toThrow(ValidationError);
     expect(() => validateVersion('1.2', '1.0.0')).toThrow(ValidationError);
     expect(() => validateVersion('1.2.0', '1.0.0')).not.toThrow();
+  });
+});
+
+describe('topluluk ve sponsorluk kuralları', () => {
+  it('yavaş mod 0–300 saniye (sunucudaki CHECK ile aynı)', () => {
+    expect(() => validateRoom({ isLocked: false, slowModeSeconds: 300 })).not.toThrow();
+    expect(() => validateRoom({ isLocked: false, slowModeSeconds: 301 })).toThrow('err.slowMode');
+    expect(() => validateRoom({ isLocked: false, slowModeSeconds: -1 })).toThrow('err.slowMode');
+  });
+
+  it('sponsor bağlantısı https olmalı ve bitiş başlangıçtan sonra olmalı', () => {
+    const sp = { sponsorName: 'Sponsor', titleTr: 'Başlık', titleEn: 'Title', placement: 'home_featured' as const, channelId: null,
+      clickUrl: 'https://ornek.com', startsAt: '2026-11-01T00:00:00Z', endsAt: '2026-12-01T00:00:00Z', isActive: true, notes: null };
+    expect(() => validateSponsorship(sp)).not.toThrow();
+    expect(() => validateSponsorship({ ...sp, clickUrl: 'http://ornek.com' })).toThrow('err.httpsLink');
+    expect(() => validateSponsorship({ ...sp, endsAt: sp.startsAt })).toThrow('err.endAfterStart');
   });
 });

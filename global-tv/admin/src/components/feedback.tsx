@@ -1,6 +1,7 @@
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { ForbiddenError, ValidationError } from '../lib/api';
+import { useI18n, type Translate } from '../i18n/I18nProvider';
+import { AppError } from '../lib/api';
 import { cx } from './ui';
 
 interface Toast {
@@ -11,34 +12,35 @@ interface Toast {
 
 const ToastContext = createContext<{ notify: (text: string) => void; fail: (error: unknown) => void } | null>(null);
 
-export function errorMessage(error: unknown): string {
-  if (error instanceof ForbiddenError || error instanceof ValidationError) return error.message;
-  return 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.';
+export function errorMessage(t: Translate, error: unknown): string {
+  if (error instanceof AppError) return t(error.key, error.params);
+  return t('err.unexpected');
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const { t } = useI18n();
   const [toasts, setToasts] = useState<Toast[]>([]);
   const seq = useRef(0);
 
   const push = useCallback((tone: Toast['tone'], text: string) => {
     const id = ++seq.current;
-    setToasts((t) => [...t, { id, tone, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 5000);
+    setToasts((x) => [...x, { id, tone, text }]);
+    setTimeout(() => setToasts((x) => x.filter((y) => y.id !== id)), 5000);
   }, []);
 
   const notify = useCallback((text: string) => push('good', text), [push]);
-  const fail = useCallback((error: unknown) => push('critical', errorMessage(error)), [push]);
+  const fail = useCallback((error: unknown) => push('critical', errorMessage(t, error)), [push, t]);
 
   return (
     <ToastContext.Provider value={{ notify, fail }}>
       {children}
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex flex-col items-center gap-2 p-4 sm:items-end">
-        {toasts.map((t) => (
-          <div key={t.id} role={t.tone === 'critical' ? 'alert' : 'status'}
+        {toasts.map((x) => (
+          <div key={x.id} role={x.tone === 'critical' ? 'alert' : 'status'}
             className={cx('pointer-events-auto flex max-w-sm items-start gap-2 rounded-lg border px-3 py-2 text-sm shadow-lg',
-              t.tone === 'good' ? 'border-good/30 bg-good-soft text-good' : 'border-critical/30 bg-critical-soft text-critical')}>
-            {t.tone === 'good' ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
-            <span>{t.text}</span>
+              x.tone === 'good' ? 'border-good/30 bg-good-soft text-good' : 'border-critical/30 bg-critical-soft text-critical')}>
+            {x.tone === 'good' ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}
+            <span>{x.text}</span>
           </div>
         ))}
       </div>
@@ -70,8 +72,14 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []) {
 }
 
 export function LoadState({ error }: { error: unknown }) {
+  const { t } = useI18n();
   if (error) {
-    return <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">{errorMessage(error)}</p>;
+    return <p role="alert" className="rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">{errorMessage(t, error)}</p>;
   }
-  return <p className="py-8 text-center text-sm text-ink-3">Yükleniyor…</p>;
+  return <p className="py-8 text-center text-sm text-ink-3">{t('common.loading')}</p>;
+}
+
+export function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return <p role="alert" className="mt-3 rounded-lg bg-critical-soft px-3 py-2 text-sm text-critical">{message}</p>;
 }

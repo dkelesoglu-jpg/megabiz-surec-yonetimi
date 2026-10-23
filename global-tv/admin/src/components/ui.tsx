@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { useI18n } from '../i18n/I18nProvider';
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ');
@@ -20,7 +21,7 @@ export function Button({
       className={cx(
         'inline-flex items-center justify-center gap-1.5 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50',
         size === 'sm' ? 'h-8 px-2.5 text-sm' : 'h-10 px-4 text-sm',
-        variant === 'primary' && 'bg-accent text-accent-ink hover:brightness-110',
+        variant === 'primary' && 'bg-accent-strong text-accent-ink shadow-sm hover:brightness-110',
         variant === 'secondary' && 'border border-line bg-surface text-ink hover:bg-surface-2',
         variant === 'danger' && 'border border-critical/40 bg-critical-soft text-critical hover:brightness-95',
         variant === 'ghost' && 'text-ink-2 hover:bg-surface-2 hover:text-ink',
@@ -52,7 +53,7 @@ export function Badge({ tone = 'neutral', icon, children }: { tone?: Tone; icon?
 
 export function Card({ title, actions, children, className }: { title?: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cx('rounded-xl border border-line bg-surface', className)}>
+    <section className={cx('card-shadow rounded-2xl border border-line bg-surface', className)}>
       {(title || actions) && (
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
           {title && <h2 className="text-sm font-semibold">{title}</h2>}
@@ -119,6 +120,7 @@ export function Checkbox({ label, checked, onChange, disabled }: { label: string
 
 /** Erişilebilir iletişim kutusu (yerel <dialog>). Mobilde alttan tam genişlik. */
 export function Modal({ open, title, onClose, children, footer }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const d = ref.current;
@@ -142,7 +144,7 @@ export function Modal({ open, title, onClose, children, footer }: { open: boolea
       <div className="flex max-h-[90dvh] flex-col">
         <header className="flex items-center justify-between border-b border-line px-5 py-3">
           <h2 className="text-base font-semibold">{title}</h2>
-          <Button variant="ghost" size="sm" aria-label="Kapat" onClick={onClose}><X size={18} /></Button>
+          <Button variant="ghost" size="sm" aria-label={t('common.close')} onClick={onClose}><X size={18} /></Button>
         </header>
         <div className="overflow-y-auto px-5 py-4">{children}</div>
         {footer && <footer className="flex flex-wrap justify-end gap-2 border-t border-line px-5 py-3">{footer}</footer>}
@@ -185,6 +187,7 @@ export function DataList<T>({ rows, columns, rowKey, actions, empty }: {
   actions?: (row: T) => ReactNode;
   empty: string;
 }) {
+  const { t } = useI18n();
   if (rows.length === 0) return <EmptyState>{empty}</EmptyState>;
   const primary = columns.find((c) => c.primary) ?? columns[0]!;
   return (
@@ -194,7 +197,7 @@ export function DataList<T>({ rows, columns, rowKey, actions, empty }: {
           <thead>
             <tr className="border-b border-line text-xs uppercase tracking-wide text-ink-3">
               {columns.map((c) => <th key={c.header} className={cx('px-3 py-2 font-medium', c.className)}>{c.header}</th>)}
-              {actions && <th className="px-3 py-2 text-right font-medium">İşlemler</th>}
+              {actions && <th className="px-3 py-2 text-right font-medium">{t('common.actions')}</th>}
             </tr>
           </thead>
           <tbody>
