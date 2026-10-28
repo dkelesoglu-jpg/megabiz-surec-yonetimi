@@ -400,6 +400,12 @@ export const en: Record<MessageKey, string> = {
   'rpt.noData': 'No data for this period.',
   'rpt.total': 'Total: {n}',
   'rpt.chartDay': '{day}: {n}',
+  'rpt.byCountryWatch': 'Viewing by country (anonymous)',
+  'rpt.activeDevices': 'Active devices (daily, incl. guests)',
+  'rpt.devices': '{n} devices',
+  'rpt.otherCountries': 'Other (small groups)',
+  'rpt.unknownCountry': 'Unknown',
+  'rpt.anonNote': 'Only devices that gave analytics consent are counted. Country comes from the device region setting; countries with fewer than 5 devices are merged into "Other".',
 
   'set.title': 'Settings',
   'set.subtitle': 'App languages, version requirements, maintenance mode and announcements.',

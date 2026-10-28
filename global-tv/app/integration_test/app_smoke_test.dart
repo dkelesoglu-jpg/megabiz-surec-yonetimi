@@ -21,12 +21,19 @@ Future<void> pumpUntil(WidgetTester tester, Finder finder, {Duration timeout = c
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('kanal listesi → oynatma → sohbet → favori → profil', (tester) async {
+  testWidgets('izin kartı → kanal listesi → oynatma → sohbet → favori → profil → gizlilik', (tester) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [localeProvider.overrideWithBuild((ref, notifier) => const Locale('tr'))],
       child: const GlobalTvApp(),
     ));
     await pumpUntil(tester, find.text('Big Buck Bunny'));
+
+    // İlk açılışta analitik izni sorulur (varsayılan: kapalı); reddedince kart kaybolur.
+    if (find.text('İzin verme').evaluate().isNotEmpty) {
+      await tester.tap(find.text('İzin verme'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('İzin verme'), findsNothing);
+    }
 
     // Oynatıcı: gerçek HLS akışı açılmalı
     await tester.tap(find.text('Big Buck Bunny'));
@@ -48,6 +55,13 @@ void main() {
     await pumpUntil(tester, find.text('Big Buck Bunny'));
 
     await tester.tap(find.text('Profil'));
+    await pumpUntil(tester, find.text('Misafir'));
+
+    // Gizlilik ekranı: analitik anahtarı kapalı
+    await tester.tap(find.text('Gizlilik ve veriler'));
+    await pumpUntil(tester, find.text('Anonim kullanım istatistikleri'));
+    expect(tester.widget<SwitchListTile>(find.byType(SwitchListTile)).value, isFalse);
+    await tester.tap(find.byType(BackButton));
     await pumpUntil(tester, find.text('Misafir'));
   });
 }

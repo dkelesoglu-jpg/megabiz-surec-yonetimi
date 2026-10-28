@@ -1,5 +1,5 @@
 import { AppError, ForbiddenError, ValidationError } from '../src/lib/api';
-import { DemoAdminApi } from '../src/lib/demoApi';
+import { DemoAdminApi, MIN_GROUP, minGroup } from '../src/lib/demoApi';
 import { DEMO_PASSWORD, createDemoState } from '../src/lib/demoData';
 
 // Demo sunucu, gerçek sunucudaki yetki kurallarının aynısını uygulamalı:
@@ -218,5 +218,20 @@ describe('pano ve raporlar', () => {
   it('normal kullanıcının oturumu olsa bile rapor alınamaz', async () => {
     const api = new DemoAdminApi({ now: () => NOW });
     await expect(api.report(7)).rejects.toThrow(ForbiddenError);
+  });
+});
+
+describe('anonim ülke analitiği (sunucudaki admin_report ile aynı kural)', () => {
+  it('eşiğin altındaki ülkeler OTHER altında birleşir', () => {
+    expect(MIN_GROUP).toBe(5);
+    expect(minGroup([{ key: 'TR', count: 9 }, { key: 'DE', count: 2 }, { key: 'US', count: 1 }]))
+      .toEqual([{ key: 'TR', count: 9 }, { key: 'OTHER', count: 3 }]);
+  });
+
+  it('raporda hiçbir ülke 5 cihazdan az görünmez; aktif cihaz serisi dönem uzunluğunda', async () => {
+    const r = await (await as('admin@demo.local')).report(30);
+    expect(r.watchByCountry.length).toBeGreaterThan(1);
+    for (const c of r.watchByCountry) if (c.key !== 'OTHER') expect(c.devices).toBeGreaterThanOrEqual(MIN_GROUP);
+    expect(r.activeDevicesPerDay).toHaveLength(30);
   });
 });

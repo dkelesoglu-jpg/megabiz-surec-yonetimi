@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../core/analytics.dart';
 import '../../core/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/error_text.dart';
@@ -55,7 +56,7 @@ class PlayerScreen extends ConsumerWidget {
                         text: errorText(l10n, e),
                         onRetry: () => ref.invalidate(streamUrlProvider(channel.id)),
                       ),
-                      data: (url) => _HlsPlayer(key: ValueKey(url), url: url),
+                      data: (url) => _HlsPlayer(key: ValueKey(url), url: url, channelId: channel.id),
                     ),
               ),
             ),
@@ -101,23 +102,53 @@ class _PlayerMessage extends StatelessWidget {
   );
 }
 
-class _HlsPlayer extends StatefulWidget {
-  const _HlsPlayer({super.key, required this.url});
+class _HlsPlayer extends ConsumerStatefulWidget {
+  const _HlsPlayer({super.key, required this.url, required this.channelId});
 
   final String url;
+  final String channelId;
 
   @override
-  State<_HlsPlayer> createState() => _HlsPlayerState();
+  ConsumerState<_HlsPlayer> createState() => _HlsPlayerState();
 }
 
-class _HlsPlayerState extends State<_HlsPlayer> {
+class _HlsPlayerState extends ConsumerState<_HlsPlayer> with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _failed = false;
+
+  /// İzlenme süresi yalnızca yayın oynamaya başladıktan sonra ve izin verildiyse ölçülür.
+  late final WatchTracker _tracker;
+
+  /// Güncel izin durumu; dispose sırasında `ref` kullanılamadığı için burada tutulur.
+  bool _consented = false;
 
   @override
   void initState() {
     super.initState();
+    ref.listenManual(analyticsConsentProvider, (_, next) => _consented = next == AnalyticsConsent.granted,
+        fireImmediately: true);
+    _tracker = WatchTracker(
+      channelId: widget.channelId,
+      repository: ref.read(analyticsRepositoryProvider),
+      store: ref.read(consentStoreProvider),
+      isConsented: () => _consented,
+      now: ref.read(clockProvider),
+      platform: ref.read(platformProvider),
+      countryCode: ref.read(deviceCountryProvider),
+    );
+    WidgetsBinding.instance.addObserver(this);
     _init();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+    if (state == AppLifecycleState.resumed) {
+      _tracker.start();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _tracker.stop();
+    }
   }
 
   Future<void> _init() async {
@@ -132,7 +163,10 @@ class _HlsPlayerState extends State<_HlsPlayer> {
     try {
       await controller.initialize();
       await controller.play();
-      if (mounted) setState(() => _failed = false);
+      if (mounted) {
+        _tracker.start();
+        setState(() => _failed = false);
+      }
     } catch (_) {
       if (mounted) setState(() => _failed = true);
     }
@@ -149,6 +183,9 @@ class _HlsPlayerState extends State<_HlsPlayer> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // Ekrandan çıkınca ölçüm kapanır ve (izin varsa) gönderilir.
+    _tracker.stop();
     _controller?.dispose();
     super.dispose();
   }

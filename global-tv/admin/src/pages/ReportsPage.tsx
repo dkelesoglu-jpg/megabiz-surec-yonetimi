@@ -43,6 +43,7 @@ const total = (d: DayCount[]) => d.reduce((n, x) => n + x.count, 0);
 function ReportBody({ data }: { data: ReportData }) {
   const { t, fmtNumber } = useI18n();
   const minutes = (n: number) => t('common.minutes', { n: fmtNumber(n) });
+  const country = (key: string) => (key === 'OTHER' ? t('rpt.otherCountries') : key === '??' ? t('rpt.unknownCountry') : key);
 
   return (
     <div className="flex flex-col gap-8">
@@ -53,8 +54,11 @@ function ReportBody({ data }: { data: ReportData }) {
         <Card title={t('rpt.signups')} actions={<span className="text-xs text-ink-3">{t('rpt.total', { n: fmtNumber(total(data.signupsPerDay)) })}</span>}>
           <DailyBars data={data.signupsPerDay} label={t('rpt.signups')} />
         </Card>
+        <Card title={t('rpt.activeDevices')} actions={<span className="text-xs text-ink-3">{t('rpt.total', { n: fmtNumber(total(data.activeDevicesPerDay)) })}</span>}>
+          <DailyBars data={data.activeDevicesPerDay} label={t('rpt.activeDevices')} />
+        </Card>
         <Card title={t('rpt.byCountry')}>
-          <BarList items={data.usersByCountry.slice(0, 8).map((c) => ({ label: c.key, value: c.count }))} />
+          <BarList items={data.usersByCountry.slice(0, 8).map((c) => ({ label: country(c.key), value: c.count }))} />
         </Card>
       </Section>
 
@@ -64,6 +68,10 @@ function ReportBody({ data }: { data: ReportData }) {
         </Card>
         <Card title={t('rpt.byPlatform')}>
           <BarList format={minutes} items={data.watchByPlatform.map((p) => ({ label: p.key === 'ios' ? 'iOS' : p.key === 'android' ? 'Android' : p.key, value: p.count }))} />
+        </Card>
+        <Card title={t('rpt.byCountryWatch')}>
+          <BarList format={minutes} items={data.watchByCountry.map((c) => ({ label: country(c.key), value: c.minutes, sub: t('rpt.devices', { n: fmtNumber(c.devices) }) }))} />
+          <p className="mt-3 flex items-start gap-2 text-xs text-ink-3"><Info size={14} className="mt-0.5 shrink-0" aria-hidden />{t('rpt.anonNote')}</p>
         </Card>
       </Section>
 
@@ -108,6 +116,8 @@ function exportAll(data: ReportData, t: ReturnType<typeof useI18n>['t']) {
   data.usersByCountry.forEach((c) => rows.push([t('rpt.byCountry'), c.key, c.count]));
   data.watchByChannel.forEach((c) => rows.push([t('rpt.byChannel'), c.channelName, c.minutes]));
   data.watchByPlatform.forEach((c) => rows.push([t('rpt.byPlatform'), c.key, c.count]));
+  data.watchByCountry.forEach((c) => rows.push([t('rpt.byCountryWatch'), c.key, c.minutes]));
+  days(t('rpt.activeDevices'), data.activeDevicesPerDay);
   data.reportsByReason.forEach((c) => rows.push([t('rpt.reportsByReason'), c.key, c.count]));
   data.moderationByAction.forEach((c) => rows.push([t('rpt.moderationByAction'), c.key, c.count]));
   downloadCsv(`globaltv-rapor-${data.days}g.csv`, rows);

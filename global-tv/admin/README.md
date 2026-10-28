@@ -28,7 +28,7 @@ Panel **yalnızca publishable key** kullanır; `service_role` / secret anahtar p
 | Topluluk: canlı sohbet odaları (kilit, yavaş mod), mesajlar/yorumlar (gizle, sil), kullanıcı şikâyetleri | `/community` | `community.manage` (+ `chat.moderate`, `reports.manage`) |
 | Moderasyon: kullanıcı engelleme/susturma, moderatör rolleri, moderasyon işlem kayıtları | `/moderation` | `users.read` (+ `users.moderate`, `users.manage_roles`) |
 | Reklam yönetimi: AdMob reklam alanları + sponsorlu içerik | `/ads` | `ads.manage` |
-| Raporlama: kullanıcı, yayın, sohbet, reklam istatistikleri; 7/30/90 gün; CSV | `/reports` | `reports.read` (reklam bölümü `ads.manage`) |
+| Raporlama: kullanıcı, aktif cihaz, ülkeye göre anonim izlenme (5 cihaz eşiği), yayın, sohbet, reklam; 7/30/90 gün; CSV | `/reports` | `reports.read` (reklam bölümü `ads.manage`) |
 | Sistem ayarları: uygulama dilleri, sürümler, bakım modu, duyurular | `/settings` | görüntüleme `dashboard.read`; düzenleme `settings.manage` / `announcements.manage` |
 | Denetim kaydı | `/audit` | `audit.read` |
 
@@ -64,6 +64,5 @@ PW_CHROMIUM_PATH=/opt/pw-browsers/chromium npm run test:e2e   # tarayıcı: masa
 ## Henüz yapılmayanlar
 - Gerçek Supabase'e karşı çalıştırma (ayrı Supabase hesabı bekleniyor)
 - Yönetici hesapları için MFA zorunluluğu (Supabase MFA, gerçek sunucuya geçişte)
-- Mobil uygulamanın izlenme/aktiflik verisi göndermesi (`watch_sessions`, `touch_activity`) ve oda kilidi/yavaş mod mesajlarını göstermesi
 - Reklam istatistiklerinin AdMob'dan alınması (AdMob hesabı onaya bağlı)
 - Panelin dağıtımı (barındırma yeri ürün sahibinin kararı; canlıya dağıtım yapılmadı)

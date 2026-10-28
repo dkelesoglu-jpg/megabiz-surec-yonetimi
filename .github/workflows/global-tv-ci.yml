@@ -19,6 +19,12 @@ on:
         type: boolean
         default: false
 
+# Aynı dala art arda gönderimde eski çalışma iptal edilir (Actions dakikası tasarrufu).
+# Elle tetiklenen cihaz testleri iptal edilmez.
+concurrency:
+  group: global-tv-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+
 # En az yetki: iş akışı depoya yalnızca okuma erişimiyle çalışır.
 permissions:
   contents: read

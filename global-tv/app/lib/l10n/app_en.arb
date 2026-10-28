@@ -84,5 +84,94 @@
   "errRateLimited": "You are sending messages too fast. Please wait a moment.",
   "errNotAvailable": "This channel is not available right now.",
   "errGeoBlocked": "This channel is not available in your country.",
-  "errUnknown": "Something went wrong. Please try again."
+  "errUnknown": "Something went wrong. Please try again.",
+  "chatRoomLocked": "This chat room has been temporarily locked by moderators. You can still read messages.",
+  "chatSlowMode": "Slow mode is on: you can send one message every {seconds} seconds.",
+  "@chatSlowMode": {
+    "placeholders": {
+      "seconds": {
+        "type": "int"
+      }
+    }
+  },
+  "chatSlowModeWait": "Slow mode: wait {time} before your next message.",
+  "@chatSlowModeWait": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chatMuted": "A moderator has muted you in chat. You can write again in {time}.",
+  "@chatMuted": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "chatBanned": "Your chat access has been closed for violating the community rules. You can keep watching channels.",
+  "chatMessageHidden": "Only you can see this message: a moderator hid it for breaking the community rules.",
+  "durationSeconds": "{n} s",
+  "@durationSeconds": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "durationMinutes": "{n} min",
+  "@durationMinutes": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "durationHours": "{h} h {m} min",
+  "@durationHours": {
+    "placeholders": {
+      "h": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      }
+    }
+  },
+  "durationDays": "{n, plural, =1{1 day} other{{n} days}}",
+  "@durationDays": {
+    "placeholders": {
+      "n": {
+        "type": "int"
+      }
+    }
+  },
+  "errRoomLocked": "This chat room is locked; messages can't be sent right now.",
+  "errSlowMode": "Slow mode is on. Please wait before sending your next message.",
+  "errMuted": "You are muted and can't send messages right now.",
+  "errBanned": "Your account's chat access has been closed.",
+  "analyticsConsentTitle": "Help us improve Global TV",
+  "analyticsConsentBody": "If you allow it, we anonymously count which channels are watched and for how long. Your name, email and location are never added to this data. You can change your choice any time in Profile > Privacy & data.",
+  "analyticsAllow": "Allow",
+  "analyticsDeny": "Don't allow",
+  "analyticsDetails": "Details",
+  "privacyAnalyticsSwitch": "Anonymous usage statistics",
+  "privacyAnalyticsSubtitle": "Channel watch time and daily use. Default: off.",
+  "privacyCollectedTitle": "Collected only if you allow it",
+  "privacyCollected": "• Channel watched and watch time\n• Platform (Android / iOS)\n• Country from your device region setting (e.g. TR)\n• A random device ID that is renewed every 30 days\n• If signed in: that you used the app on that day",
+  "privacyNotCollectedTitle": "Never collected",
+  "privacyNotCollected": "• Your name, email or phone in watch records\n• GPS location, contacts, photos\n• Advertising ID (IDFA / AAID)\n• Your activity in other apps",
+  "privacyRetention": "Watch records are kept for at most 13 months. Reports never show countries with fewer than 5 devices separately. When you turn this off, sending stops and the device ID is deleted.",
+  "privacyConsentSaved": "Your choice has been saved.",
+  "accountStatus": "Account status",
+  "accountStatusMuted": "Muted in chat · {time} left",
+  "@accountStatusMuted": {
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "accountStatusBanned": "Chat access closed"
 }

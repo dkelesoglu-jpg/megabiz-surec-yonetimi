@@ -67,6 +67,7 @@ class SupabaseChatRepository implements ChatRepository {
                 username: r['author_name'] as String,
                 body: r['body'] as String,
                 createdAt: DateTime.parse(r['created_at'] as String),
+                isHidden: r['is_hidden'] as bool? ?? false,
               ),
           ]);
 
@@ -76,9 +77,58 @@ class SupabaseChatRepository implements ChatRepository {
       // user_id ve author_name sunucuda oturumdan atanır.
       await _client.from('chat_messages').insert({'channel_id': channelId, 'body': body});
     } on PostgrestException catch (e) {
-      throw AppException(e.message.contains('rate_limited') ? AppErrorCode.rateLimited : AppErrorCode.unknown);
+      throw AppException(await _sendError(e));
     }
   }
+
+  /// Sunucu kurallarını (before_chat_insert, chat_insert RLS) kullanıcıya anlaşılır koda çevirir.
+  Future<AppErrorCode> _sendError(PostgrestException e) async {
+    for (final (key, code) in const [
+      ('room_locked', AppErrorCode.roomLocked),
+      ('slow_mode', AppErrorCode.slowMode),
+      ('rate_limited', AppErrorCode.rateLimited),
+    ]) {
+      if (e.message.contains(key)) return code;
+    }
+    // RLS reddi (42501): yasaklı veya susturulmuş kullanıcı.
+    if (e.code == '42501') {
+      final status = await _myStatus(_client.auth.currentUser?.id);
+      if (status.isBanned) return AppErrorCode.banned;
+      if (status.isMutedAt(DateTime.now())) return AppErrorCode.muted;
+    }
+    return AppErrorCode.unknown;
+  }
+
+  Future<ModerationStatus> _myStatus(String? userId) async {
+    if (userId == null) return ModerationStatus.clear;
+    final row = await _client.from('profiles').select('is_banned, muted_until').eq('id', userId).maybeSingle();
+    return row == null ? ModerationStatus.clear : _status(row);
+  }
+
+  static ModerationStatus _status(Map<String, dynamic> row) => ModerationStatus(
+        isBanned: row['is_banned'] as bool? ?? false,
+        mutedUntil: row['muted_until'] == null ? null : DateTime.parse(row['muted_until'] as String),
+      );
+
+  @override
+  Stream<ChatRoomState> watchRoom(String channelId) => _client
+      .from('chat_room_settings')
+      .stream(primaryKey: ['channel_id'])
+      .eq('channel_id', channelId)
+      .map((rows) => rows.isEmpty
+          ? ChatRoomState.open
+          : ChatRoomState(
+              isLocked: rows.first['is_locked'] as bool? ?? false,
+              slowModeSeconds: rows.first['slow_mode_seconds'] as int? ?? 0,
+            ));
+
+  // RLS: kullanıcı yalnızca kendi profilini okur ve yalnızca onun değişikliklerini alır.
+  @override
+  Stream<ModerationStatus> watchMyStatus(String userId) => _client
+      .from('profiles')
+      .stream(primaryKey: ['id'])
+      .eq('id', userId)
+      .map((rows) => rows.isEmpty ? ModerationStatus.clear : _status(rows.first));
 
   @override
   Future<void> report({required String messageId, required ReportReason reason}) async {
@@ -171,10 +221,13 @@ class SupabaseBlocksRepository implements BlocksRepository {
 
   @override
   Future<Map<String, String>> load() async {
-    final rows = await _client.from('blocks').select('blocked_id, profiles!blocks_blocked_id_fkey(username)');
-    return {
-      for (final r in rows) r['blocked_id'] as String: (r['profiles'] as Map?)?['username'] as String? ?? '',
-    };
+    final rows = await _client.from('blocks').select('blocked_id');
+    final ids = [for (final r in rows) r['blocked_id'] as String];
+    if (ids.isEmpty) return {};
+    // Başkalarının profiline erişim yok; yalnızca kullanıcı adı alınır.
+    final names = await _client.rpc('public_usernames', params: {'p_ids': ids}) as List;
+    final byId = {for (final n in names) n['id'] as String: n['username'] as String};
+    return {for (final id in ids) id: byId[id] ?? ''};
   }
 
   @override
@@ -184,4 +237,24 @@ class SupabaseBlocksRepository implements BlocksRepository {
 
   @override
   Future<void> unblock(String userId) => _client.from('blocks').delete().eq('blocked_id', userId);
+}
+
+class SupabaseAnalyticsRepository implements AnalyticsRepository {
+  SupabaseAnalyticsRepository(this._client);
+
+  final SupabaseClient _client;
+
+  // Kullanıcı kimliği gönderilmez (user_id boş kalır): kayıt anonimdir.
+  @override
+  Future<void> recordWatch(WatchSession session) => _client.from('watch_sessions').insert({
+        'device_hash': session.deviceId,
+        'channel_id': session.channelId,
+        'platform': session.platform,
+        'country_code': session.countryCode,
+        'started_at': session.startedAt.toUtc().toIso8601String(),
+        'duration_seconds': session.duration.inSeconds,
+      });
+
+  @override
+  Future<void> touchActivity(String platform) => _client.rpc('touch_activity', params: {'p_platform': platform});
 }

@@ -164,7 +164,9 @@ export class DemoAdminApi implements AdminApi {
       days: span,
       signupsPerDay: this.perDay(span, (day) => s.profiles.filter((p) => p.createdAt.slice(0, 10) === day).length),
       activePerDay: this.perDay(span, (day) => s.activity.filter((a) => a.day === day).length),
-      usersByCountry: count(s.profiles, (p) => p.countryCode ?? '??'),
+      usersByCountry: minGroup(count(s.profiles, (p) => p.countryCode ?? '??')),
+      activeDevicesPerDay: this.perDay(span, (day) => Math.round(watch.filter((w) => w.day === day).reduce((n, w) => n + w.sessions, 0) * 0.7)),
+      watchByCountry: watchByCountry(watch),
       watchByPlatform: (['android', 'ios'] as const).map((p) => ({ key: p, count: watch.filter((w) => w.platform === p).reduce((n, w) => n + w.minutes, 0) })),
       watchByChannel: [...byChannel].map(([channelId, v]) => ({
         channelId, channelName: s.channels.find((c) => c.id === channelId)?.name ?? channelId, ...v,
@@ -460,4 +462,28 @@ export class DemoAdminApi implements AdminApi {
     this.require('audit.read');
     return this.clone(this.audit);
   }
+}
+
+/** Sunucudaki `analytics_min_group()` ile aynı eşik. */
+export const MIN_GROUP = 5;
+
+/** k-anonimlik: eşiğin altındaki gruplar `OTHER` altında birleşir (admin_report ile aynı kural). */
+export function minGroup(items: KeyCount[], k = MIN_GROUP): KeyCount[] {
+  const big = items.filter((i) => i.count >= k);
+  const other = items.filter((i) => i.count < k).reduce((n, i) => n + i.count, 0);
+  return other > 0 ? [...big, { key: 'OTHER', count: other }] : big;
+}
+
+// Demo: izleyici ülkeleri sabit paylarla dağıtılır; küçük paylar eşiğin altında kalır.
+const VIEWER_SHARE: [string, number][] = [['TR', 0.58], ['DE', 0.18], ['NL', 0.1], ['US', 0.07], ['GB', 0.04], ['AZ', 0.02], ['FR', 0.01]];
+
+function watchByCountry(watch: { sessions: number; minutes: number }[]) {
+  const sessions = watch.reduce((n, w) => n + w.sessions, 0);
+  const minutes = watch.reduce((n, w) => n + w.minutes, 0);
+  // Cihaz ≈ oturumların 1/6'sı (aynı cihaz dönemde birden çok kez izler)
+  const rows = VIEWER_SHARE.map(([key, share]) => ({ key, minutes: Math.round(minutes * share), devices: Math.round((sessions / 6) * share) }));
+  const big = rows.filter((r) => r.devices >= MIN_GROUP);
+  const small = rows.filter((r) => r.devices < MIN_GROUP);
+  if (small.length) big.push({ key: 'OTHER', minutes: small.reduce((n, r) => n + r.minutes, 0), devices: small.reduce((n, r) => n + r.devices, 0) });
+  return big.sort((a, b) => b.minutes - a.minutes);
 }

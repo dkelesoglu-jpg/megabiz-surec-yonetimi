@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/analytics.dart';
 import '../../core/providers.dart';
+import '../../core/router.dart';
 import '../../data/models.dart';
 import '../../l10n/gen/app_localizations.dart';
 import '../../shared/channel_tile.dart';
@@ -14,6 +17,9 @@ class LiveTvScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final channels = ref.watch(filteredChannelsProvider);
     final isDemo = ref.watch(appConfigProvider).isDemoMode;
+    // İzin sorusu listenin başında, kaydırılabilir alanda: küçük ekranda taşma yapmaz,
+    // uygulamanın kullanımını engellemez.
+    final askConsent = ref.watch(analyticsConsentProvider) == AnalyticsConsent.unasked;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navLive)),
@@ -34,8 +40,10 @@ class LiveTvScreen extends ConsumerWidget {
               data: (list) => list.isEmpty
                   ? Center(child: Text(l10n.noChannels))
                   : ListView.builder(
-                      itemCount: list.length,
-                      itemBuilder: (_, i) => ChannelTile(channel: list[i]),
+                      itemCount: list.length + (askConsent ? 1 : 0),
+                      itemBuilder: (_, i) => askConsent
+                          ? (i == 0 ? const AnalyticsConsentCard() : ChannelTile(channel: list[i - 1]))
+                          : ChannelTile(channel: list[i]),
                     ),
             ),
           ),
@@ -62,6 +70,7 @@ class _FilterBar extends ConsumerWidget {
           Row(
             children: [
               Expanded(
+                flex: 3,
                 child: TextField(
                   key: const Key('channelSearch'),
                   decoration: InputDecoration(
@@ -74,15 +83,20 @@ class _FilterBar extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              DropdownButton<String?>(
-                key: const Key('countryFilter'),
-                value: filter.countryCode,
-                underline: const SizedBox.shrink(),
-                items: [
-                  DropdownMenuItem(value: null, child: Text(l10n.allCountries)),
-                  for (final code in countries) DropdownMenuItem(value: code, child: Text(code)),
-                ],
-                onChanged: notifier.setCountry,
+              // Büyük yazı tipinde ve uzun metinlerde ("All countries") satırdan taşmaz.
+              Flexible(
+                flex: 2,
+                child: DropdownButton<String?>(
+                  key: const Key('countryFilter'),
+                  isExpanded: true,
+                  value: filter.countryCode,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    DropdownMenuItem(value: null, child: Text(l10n.allCountries, overflow: TextOverflow.ellipsis)),
+                    for (final code in countries) DropdownMenuItem(value: code, child: Text(code)),
+                  ],
+                  onChanged: notifier.setCountry,
+                ),
               ),
             ],
           ),
@@ -107,4 +121,47 @@ class _FilterBar extends ConsumerWidget {
         padding: const EdgeInsets.only(right: 8),
         child: ChoiceChip(label: Text(label), selected: selected, onSelected: (_) => onTap()),
       );
+}
+
+/// Açık rıza: "İzin ver" ve "İzin verme" eşit ağırlıkta; seçilmezse veri gönderilmez.
+class AnalyticsConsentCard extends ConsumerWidget {
+  const AnalyticsConsentCard({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final notifier = ref.read(analyticsConsentProvider.notifier);
+    return Card(
+      key: const Key('analyticsConsent'),
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.insights_outlined, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Expanded(child: Text(l10n.analyticsConsentTitle, style: theme.textTheme.titleSmall)),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(l10n.analyticsConsentBody, style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              children: [
+                TextButton(onPressed: () => context.push(Routes.privacy), child: Text(l10n.analyticsDetails)),
+                OutlinedButton(onPressed: () => notifier.set(false), child: Text(l10n.analyticsDeny)),
+                OutlinedButton(onPressed: () => notifier.set(true), child: Text(l10n.analyticsAllow)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

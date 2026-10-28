@@ -76,7 +76,17 @@ class DemoChannelRepository implements ChannelRepository {
       demoStreams[channelId] ?? (throw const AppException(AppErrorCode.notAvailable));
 }
 
+/// Demo odaları: kilitli oda ve yavaş mod uyarılarını sunucusuz denemek için.
+const demoRooms = <String, ChatRoomState>{
+  'demo-tr-haber': ChatRoomState(isLocked: true),
+  'demo-tr-spor': ChatRoomState(slowModeSeconds: 30),
+};
+
 class DemoChatRepository implements ChatRepository {
+  DemoChatRepository({this.rooms = demoRooms, DateTime Function()? now}) : _now = now ?? DateTime.now;
+
+  final Map<String, ChatRoomState> rooms;
+  final DateTime Function() _now;
   final _messages = <String, List<ChatMessage>>{};
   final _controllers = <String, StreamController<List<ChatMessage>>>{};
   var _nextId = 0;
@@ -92,20 +102,48 @@ class DemoChatRepository implements ChatRepository {
 
   @override
   Future<void> send({required String channelId, required AppUser user, required String body}) async {
+    // Sunucudaki before_chat_insert kurallarının aynısı.
+    final room = rooms[channelId] ?? ChatRoomState.open;
+    if (room.isLocked) throw const AppException(AppErrorCode.roomLocked);
     final list = _messages.putIfAbsent(channelId, () => []);
+    final now = _now();
+    final lastOwn = list.where((m) => m.userId == user.id).lastOrNull;
+    if (room.slowModeSeconds > 0 &&
+        lastOwn != null &&
+        now.difference(lastOwn.createdAt) < Duration(seconds: room.slowModeSeconds)) {
+      throw const AppException(AppErrorCode.slowMode);
+    }
     list.add(ChatMessage(
       id: '${_nextId++}',
       channelId: channelId,
       userId: user.id,
       username: user.username,
       body: body,
-      createdAt: DateTime.now(),
+      createdAt: now,
     ));
     _controllerFor(channelId).add(List.unmodifiable(list));
   }
 
   @override
   Future<void> report({required String messageId, required ReportReason reason}) async {}
+
+  @override
+  Stream<ChatRoomState> watchRoom(String channelId) => Stream.value(rooms[channelId] ?? ChatRoomState.open);
+
+  @override
+  Stream<ModerationStatus> watchMyStatus(String userId) => Stream.value(ModerationStatus.clear);
+}
+
+/// Demo modunda sunucu yok: kayıtlar yalnızca bellekte tutulur (testlerde incelenir).
+class DemoAnalyticsRepository implements AnalyticsRepository {
+  final sessions = <WatchSession>[];
+  final activity = <String>[];
+
+  @override
+  Future<void> recordWatch(WatchSession session) async => sessions.add(session);
+
+  @override
+  Future<void> touchActivity(String platform) async => activity.add(platform);
 }
 
 class DemoAuthRepository implements AuthRepository {

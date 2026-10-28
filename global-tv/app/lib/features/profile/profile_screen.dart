@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics.dart';
 import '../../core/providers.dart';
+import '../../data/models.dart';
 import '../../core/router.dart';
 import '../../l10n/gen/app_localizations.dart';
+import '../../shared/error_text.dart';
+import '../chat/chat_panel.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -16,6 +20,9 @@ class ProfileScreen extends ConsumerWidget {
     final locale = ref.watch(localeProvider);
     final blocked = ref.watch(blockedUsersProvider);
     final config = ref.watch(appConfigProvider);
+    final status = ref.watch(myModerationStatusProvider).value ?? ModerationStatus.clear;
+    final now = ref.watch(clockProvider)();
+    final mutedLeft = status.isMutedAt(now) ? status.mutedUntil!.difference(now) : null;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.navProfile)),
@@ -29,6 +36,16 @@ class ProfileScreen extends ConsumerWidget {
                 ? FilledButton(onPressed: () => context.push(Routes.login), child: Text(l10n.signIn))
                 : null,
           ),
+          // Moderasyon kararı varsa kullanıcı profilinde de açıkça görür.
+          if (user != null && (status.isBanned || mutedLeft != null))
+            ListTile(
+              key: const Key('accountStatus'),
+              leading: Icon(Icons.gpp_maybe_outlined, color: Theme.of(context).colorScheme.error),
+              title: Text(l10n.accountStatus),
+              subtitle: Text(status.isBanned
+                  ? l10n.accountStatusBanned
+                  : l10n.accountStatusMuted(remainingText(l10n, mutedLeft!))),
+            ),
           const Divider(),
           ListTile(
             leading: const Icon(Icons.language),
@@ -62,8 +79,8 @@ class ProfileScreen extends ConsumerWidget {
           ListTile(
             leading: const Icon(Icons.privacy_tip_outlined),
             title: Text(l10n.privacy),
-            // H6: gizlilik politikası, onay yönetimi, veri dışa aktarma
-            onTap: null,
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(Routes.privacy),
           ),
           if (user != null) ...[
             const Divider(),

@@ -216,6 +216,10 @@ export interface ReportData {
   signupsPerDay: DayCount[];
   activePerDay: DayCount[];
   usersByCountry: KeyCount[];
+  /** Misafirler dahil günlük tekil anonim cihaz. */
+  activeDevicesPerDay: DayCount[];
+  /** Anonim: 5'ten az cihazlı ülkeler `OTHER` altında birleşir (sunucuda uygulanır). */
+  watchByCountry: { key: string; minutes: number; devices: number }[];
   watchByPlatform: KeyCount[];
   watchByChannel: { channelId: string; channelName: string; minutes: number; sessions: number }[];
   messagesPerDay: DayCount[];

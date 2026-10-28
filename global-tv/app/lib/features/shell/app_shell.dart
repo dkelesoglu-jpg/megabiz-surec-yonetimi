@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/analytics.dart';
 import '../../core/providers.dart';
 import '../../l10n/gen/app_localizations.dart';
 
@@ -14,6 +15,8 @@ class AppShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final config = ref.watch(appConfigProvider);
+    // Günlük aktif kullanıcı kaydı (yalnızca giriş yapılmış ve izin verilmişse).
+    ref.watch(activityTrackerProvider);
 
     final scaffold = Scaffold(
       body: shell,

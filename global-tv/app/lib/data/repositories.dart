@@ -13,6 +13,20 @@ abstract interface class ChatRepository {
   Stream<List<ChatMessage>> watchMessages(String channelId);
   Future<void> send({required String channelId, required AppUser user, required String body});
   Future<void> report({required String messageId, required ReportReason reason});
+
+  /// Oda kilidi ve yavaş mod; moderatör değiştirdiğinde anında güncellenir.
+  Stream<ChatRoomState> watchRoom(String channelId);
+
+  /// Kullanıcının kendi susturma / yasak durumu.
+  Stream<ModerationStatus> watchMyStatus(String userId);
+}
+
+/// Yalnızca kullanıcı analitik iznini verdiyse çağrılır.
+abstract interface class AnalyticsRepository {
+  Future<void> recordWatch(WatchSession session);
+
+  /// Günlük aktif kullanıcı sayımı (giriş yapmış kullanıcı, günde bir kayıt).
+  Future<void> touchActivity(String platform);
 }
 
 abstract interface class AuthRepository {

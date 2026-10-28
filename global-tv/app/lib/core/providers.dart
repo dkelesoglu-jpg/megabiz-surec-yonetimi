@@ -32,6 +32,8 @@ final favoritesRepositoryProvider = Provider<FavoritesRepository>(
     (ref) => _pick(ref, DemoFavoritesRepository.new, SupabaseFavoritesRepository.new));
 final blocksRepositoryProvider = Provider<BlocksRepository>(
     (ref) => _pick(ref, DemoBlocksRepository.new, SupabaseBlocksRepository.new));
+final analyticsRepositoryProvider = Provider<AnalyticsRepository>(
+    (ref) => _pick(ref, DemoAnalyticsRepository.new, SupabaseAnalyticsRepository.new));
 
 final channelsProvider = FutureProvider<List<Channel>>(
   (ref) => ref.watch(channelRepositoryProvider).fetchChannels(),

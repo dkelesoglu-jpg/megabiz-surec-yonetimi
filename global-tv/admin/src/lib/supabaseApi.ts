@@ -136,6 +136,10 @@ export class SupabaseAdminApi implements AdminApi {
       signupsPerDay: fillDays(r.signups_per_day),
       activePerDay: fillDays(r.active_per_day),
       usersByCountry: keys(r.users_by_country),
+      activeDevicesPerDay: fillDays(r.active_devices_per_day),
+      watchByCountry: (r.watch_by_country ?? []).map((x: Row) => ({
+        key: String(x.key), minutes: Number(x.minutes), devices: Number(x.devices),
+      })),
       watchByPlatform: keys(r.watch_by_platform, 'minutes'),
       watchByChannel: (r.watch_by_channel ?? []).map((x: Row) => ({
         channelId: x.channel_id, channelName: channels.find((c) => c.id === x.channel_id)?.name ?? x.channel_id,
