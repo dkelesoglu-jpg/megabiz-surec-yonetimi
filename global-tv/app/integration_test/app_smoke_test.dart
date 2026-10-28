@@ -26,14 +26,23 @@ void main() {
       overrides: [localeProvider.overrideWithBuild((ref, notifier) => const Locale('tr'))],
       child: const GlobalTvApp(),
     ));
-    await pumpUntil(tester, find.text('Big Buck Bunny'));
+    // Liste açılır. Küçük ekranda (ör. CI emülatörü) izin kartı ilk kanalları aşağı iter;
+    // bu yüzden önce listenin ilk öğesi beklenir.
+    await pumpUntil(tester, find.byKey(const Key('channelList')));
+    await tester.pump(const Duration(milliseconds: 500));
 
     // İlk açılışta analitik izni sorulur (varsayılan: kapalı); reddedince kart kaybolur.
     if (find.text('İzin verme').evaluate().isNotEmpty) {
+      // Küçük ekranda düğmeler alt gezinme çubuğunun altında kalabilir: önce görünür yap.
+      await tester.ensureVisible(find.text('İzin verme'));
+      await tester.pump(const Duration(milliseconds: 300));
       await tester.tap(find.text('İzin verme'));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.text('İzin verme'), findsNothing);
     }
+    // Kart kaldırıldıktan sonra liste kaydırılmış kalabilir: başa dön.
+    await tester.drag(find.byKey(const Key('channelList')), const Offset(0, 600));
+    await pumpUntil(tester, find.text('Big Buck Bunny'));
 
     // Oynatıcı: gerçek HLS akışı açılmalı
     await tester.tap(find.text('Big Buck Bunny'));

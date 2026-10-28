@@ -40,6 +40,7 @@ class LiveTvScreen extends ConsumerWidget {
               data: (list) => list.isEmpty
                   ? Center(child: Text(l10n.noChannels))
                   : ListView.builder(
+                      key: const Key('channelList'),
                       itemCount: list.length + (askConsent ? 1 : 0),
                       itemBuilder: (_, i) => askConsent
                           ? (i == 0 ? const AnalyticsConsentCard() : ChannelTile(channel: list[i - 1]))
