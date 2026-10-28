@@ -102,6 +102,7 @@ Canlı TV filtre satırı (arama + ülke seçici) büyük yazı tipi ve İngiliz
 | Küçük ekranda (390×420) ve yatayda yasak/kilit uyarısı sohbet alanını 18–62 piksel taşırıyordu | Engelleyen uyarı artık yazma alanının **yerine** geçiyor; uyarı yüksekliği sınırlı. Test düzeltmeden önce düşüyordu, şimdi geçiyor |
 | Filtre satırı büyük yazı tipinde taşıyordu (mevcut hata) | Ülke seçici esnek genişliğe alındı; test aynı şekilde önce düşüp sonra geçti |
 | Profil tablosu herkese açıktı (gizlilik) | Bkz. §4. Erişim testleri eklendi |
+| Android emülatöründe uçtan uca test ilk denemede **düştü** (CI çalışması 14); iOS geçti | Emülatör ekranı küçük (320×533). İzin kartı ilk kanalları ekran dışına itiyordu; test kanalı görünür sanıyordu. Uygulama doğru çalışıyordu (kullanıcı kaydırarak ulaşır); test, kartı kapatıp listeyi başa kaydıracak şekilde düzeltildi. Hata yerelde aynı ekran boyutunda yeniden üretilip düzeltme doğrulandı |
 
 ## 7. Ekran görüntüleri
 Klasör: [../ekran-goruntuleri/](../ekran-goruntuleri/). Mobil görüntüler koyu temada, Roboto yazı tipiyle test ortamında üretildi; video alanı test ortamında yükleniyor görünür.
