@@ -88,9 +88,9 @@ Canlı TV filtre satırı (arama + ülke seçici) büyük yazı tipi ve İngiliz
 | Veritabanı kuralları | ✅ **105/105** (yeni 22: profil gizliliği, gizlenen mesaj, susturma, canlı yayın, k-anonimlik, saklama) |
 | Mobil analiz | ✅ temiz |
 | Mobil birim + arayüz | ✅ **48/48** (yeni 27: rıza, izlenme ölçümü, oda kilidi, yavaş mod geri sayımı, susturma/yasak, gizlenen mesaj, TR/EN, küçük/yatay/büyük yazı tipli ekranda taşma) |
-| **Android** emülatörü, uçtan uca | ⏳ CI çalışması 14 sürüyor |
-| **iOS** simülatörü, derleme + uçtan uca | ⏳ CI çalışması 14 sürüyor |
-| Test APK'sı (Android, demo) | ⏳ CI çalışması 14 sürüyor |
+| **Android** emülatörü, uçtan uca | ✅ 1/1 (CI çalışması 16, commit `3c3fb6b`; ilk deneme düştü, bkz. aşağı) |
+| **iOS** simülatörü, derleme + uçtan uca | ✅ 1/1 (CI çalışması 14 ve 16) |
+| Test APK'sı (Android, demo) | ✅ derlendi (CI çalışması 16 ve 18) |
 | Panel tip kontrolü + birim/arayüz | ✅ **63/63** |
 | Panel tarayıcı (masaüstü + mobil) | ✅ **11/11** |
 | Panel bağımlılık güvenliği | ✅ 0 açık |
