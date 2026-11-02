@@ -84,6 +84,68 @@ jobs:
         working-directory: global-tv/supabase/functions
         run: deno check get-stream/index.ts delete-account/index.ts
 
+  supabase-stack:
+    name: Gerçek Supabase yığını (kimlik, RLS, sohbet, Realtime, Edge Functions)
+    # Supabase'in kendi sunucu yazılımı CI içinde çalışır: hesap, proje veya ücret gerekmez.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.122.0
+      - name: Yığını başlat (migration'lar + demo veri)
+        working-directory: global-tv
+        run: supabase start -x studio,imgproxy,logflare,vector,supavisor,postgres-meta
+      - name: Edge Functions'ı başlat
+        working-directory: global-tv
+        run: |
+          supabase status -o env | sed -e 's/^/SB_/' -e 's/="\(.*\)"$/=\1/' >> "$GITHUB_ENV"
+          nohup supabase functions serve > "$RUNNER_TEMP/functions.log" 2>&1 &
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:54321/functions/v1/get-stream -d '{}' || true)
+            [ "$code" = "400" ] && exit 0
+            sleep 3
+          done
+          cat "$RUNNER_TEMP/functions.log"; exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: global-tv/supabase/remote-tests/package-lock.json
+      - name: Sunucu güvenlik testleri
+        working-directory: global-tv/supabase/remote-tests
+        run: |
+          npm ci
+          npm test
+        env:
+          SUPABASE_URL: ${{ env.SB_API_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SB_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ env.SB_SECRET_KEY }}
+          GLOBALTV_REMOTE_TESTS: '1'
+          GLOBALTV_TEST_FUNCTIONS: '1'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - name: Uygulamanın Supabase depoları gerçek sunucuya karşı
+        working-directory: global-tv/app
+        run: |
+          flutter pub get
+          flutter gen-l10n
+          flutter test test_remote
+        env:
+          SUPABASE_URL: ${{ env.SB_API_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ env.SB_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ env.SB_SECRET_KEY }}
+          GLOBALTV_REMOTE_TESTS: '1'
+      - name: Hata durumunda sunucu günlükleri
+        if: failure()
+        run: |
+          cat "$RUNNER_TEMP/functions.log" || true
+          docker ps -a --format '{{.Names}}' | grep supabase_ | xargs -r -I{} sh -c 'echo "== {}"; docker logs --tail 50 {}'
+
   admin:
     name: Yönetim paneli (tip, birim, uçtan uca)
     runs-on: ubuntu-latest
@@ -131,7 +193,9 @@ jobs:
         with:
           name: globaltv-staging-demo-apk-${{ github.run_number }}
           path: global-tv/app/build/app/outputs/flutter-apk/app-release.apk
-          retention-days: 7
+          # Her gönderimin APK'sı 7 gün; elle tetiklenen (cihaz testi yapılan) sürüm adayları 30 gün saklanır.
+          # Gizli depoda 500 MB depolama kotası: 27 MB × ~15 APK sınırında kalır.
+          retention-days: ${{ github.event_name == 'workflow_dispatch' && 30 || 7 }}
 
   android-emulator:
     name: Android emülatör — uçtan uca

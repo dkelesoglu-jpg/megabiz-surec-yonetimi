@@ -1,0 +1,12 @@
+{
+  "name": "globaltv-remote-tests",
+  "private": true,
+  "type": "module",
+  "description": "Gerçek Supabase sunucusuna (yerel yığın veya globaltv-dev) karşı uçtan uca güvenlik testleri",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-reporter=spec"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.118.0"
+  }
+}

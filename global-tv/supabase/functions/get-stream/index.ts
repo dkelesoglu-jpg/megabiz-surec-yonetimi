@@ -1,7 +1,9 @@
 // Bir kanalın HLS adresini, yayın hakkını yeniden doğrulayarak döner.
 // İstemci channel_streams tablosunu okuyamaz (RLS); adres yalnızca buradan gelir.
+// Misafirler de çağırır: platform JWT kontrolü kapalıdır (config.toml), kurallar aşağıda uygulanır.
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 import { corsHeaders, json } from '../_shared/cors.ts';
+import { secretKey, supabaseUrl } from '../_shared/keys.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
@@ -10,7 +12,7 @@ Deno.serve(async (req) => {
   const { channel_id: channelId, country } = await req.json().catch(() => ({}));
   if (typeof channelId !== 'string') return json({ error: 'channel_id_required' }, 400);
 
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
+  const admin = createClient(supabaseUrl(), secretKey());
   const today = new Date().toISOString().slice(0, 10);
 
   const { data: rights, error: rightsError } = await admin
