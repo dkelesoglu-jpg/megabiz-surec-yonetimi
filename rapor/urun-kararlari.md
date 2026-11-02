@@ -180,3 +180,48 @@ Yeni bir şehir, **(A) mevcut şehrin sağlıklı olduğu** ve **(B) yeni şehir
 | `city_waitlist` | `user_id`, `city_id`, `created_at` |
 | `groups.scope` | `city` / `national` (Türkiye geneli masalar) |
 | `city_metrics_weekly` | A1–A11 ve M1–M5 metriklerinin haftalık anlık görüntüsü (yönetim panelinde "Şehir Sağlığı" panosu için) |
+
+---
+
+## ÜK-07 · İsim Araştırması
+
+- Kısa liste: **Aralık · Usul · Masa · Yol Arkadaşı**. Ön araştırma `isim-arastirmasi.md` dosyasında.
+- Ön araştırmanın sonucu (öneri; nihai karar Deniz'e ait):
+  - **Finalistler:** Aralık ve Usul.
+  - **Masa:** Elenmesi önerildi. Türkiye'de aynı kategoride "Masa App" adlı bir sosyalleşme uygulaması var. "Masa" yalnızca uygulama içinde küçük grup özelliğinin adı olarak kalabilir.
+  - **Yol Arkadaşı:** Marka adı olarak zayıf. Mentor/gönüllü programının adı olarak kullanılması önerildi.
+  - **Yedekler:** Arala, Usulca, Halhatır. Bunlar da TÜRKPATENT araştırmasına eklensin.
+- Nihai isim kararı, marka vekili araştırması ve alan adı/kullanıcı adı kontrolünden sonra verilecek. O zamana kadar kodda ve dokümanlarda **teknik kod adı** kullanılır (ör. `aralik` yerine nötr bir ad: `project-a`). Böylece isim değişirse kodda değişiklik gerekmez.
+
+---
+
+## ÜK-08 · Geliştirme Modeli
+
+| Rol | Kim | Sorumluluk |
+|---|---|---|
+| Kurucu / Product Owner | **Deniz** | Nihai ürün ve ticari kararlar, öncelikler, kabul testleri, hesap ve sözleşme işlemleri |
+| Geliştirme | **Claude / Claude Code** | Kod, mimari, veri modeli, API, backend, mobil, admin, testler, refactoring, teknik dokümantasyon |
+| İkinci görüş | **ChatGPT / Codex** | Ürün stratejisi, UX analizi, test senaryoları, güvenlik kontrolü, kod incelemesi, hata analizi |
+| Zorunlu bağımsız kontrol | **Hukuk uzmanı** | KVKK, 5651, yaş doğrulama, kullanıcı içeriği, yurt dışı aktarım, kullanım koşulları, açık rıza, gizlilik politikası |
+| Zorunlu bağımsız kontrol | **Güvenlik uzmanı** | Canlı öncesi güvenlik incelemesi, penetrasyon testi, RLS, API yetkilendirme, veri sızıntısı, dosya erişimi, admin yetkileri |
+| Zorunlu bağımsız kontrol | **Ruh sağlığı uzmanı** | Kriz mesajları, intihar/kendine zarar sinyalleri, topluluk dili |
+
+> ⚠️ **Kritik uyarı 3: 15 yaş sınırı ve yaş doğrulama yönetmeliği yürürlükte (1 Kasım 2026).**
+> Güncel haberlere ve hukuki değerlendirmelere göre:
+> - 5651 sayılı Kanun'un ek 4. maddesi (7578 sayılı Kanun ile değişik) ve 10 Ekim 2026'da yayımlanan *Sosyal Ağ Sağlayıcı Tarafından Çocuklara Özgü Ayrıştırılmış Hizmet Sunulmasına ve Yaş Doğrulamaya İlişkin Yönetmelik* ile 15 yaş altına sosyal ağ hizmeti yasaklandı.
+> - Hesap açılışında **e-Devlet üzerinden üretilen bir yaş doğrulama belirteci** ile yaş kontrolü öngörülüyor. Belirteç 15 ve 18 yaş eşiklerine ilişkin bilgi taşıyor.
+> - Mevcut kullanıcıların doğrulaması için son tarih 31 Mart 2027.
+> - Kaynaklar, yükümlülüklerin hangi büyüklükteki platformlara uygulanacağı (ör. günlük 1 milyon erişim eşiği) konusunda ayrışıyor.
+>
+> **Etkisi:** Bu uygulama 5651 anlamında "sosyal ağ sağlayıcı" sayılabilir. Bu durumda yalnızca doğum tarihi beyanı yetmez. e-Devlet yaş belirteci (18+ eşiği) **kayıt akışının zorunlu adımı** olabilir. Belirteç aynı zamanda 18+ kuralımızı hukuken sağlam biçimde uygulamanın en iyi yolu olabilir.
+>
+> **Plan buna göre tasarlandı:** Yaş doğrulama, MVP'de kendi başına bir modül (M02). Entegrasyon yöntemi ve kapsam, **kodlamadan önce hukuk uzmanının ilk sorusu**dur. Belirtecin küçük platformlara teknik olarak açık olup olmadığı da teyit edilmeli.
+
+> ⚠️ **Kritik uyarı 4: AI araçlarına gerçek kullanıcı verisi ve gizli anahtar verilmez.**
+> Claude ve ChatGPT/Codex'e yalnızca kod, şema, sentetik veri ve anonim hata kayıtları verilir. Gerçek kullanıcı mesajları, fotoğrafları, telefon numaraları, rapor içerikleri ve API anahtarları **hiçbir zaman** AI sohbetlerine kopyalanmaz. Aksi durum KVKK'da özel nitelikli verinin izinsiz yurt dışına aktarımı ve güvenlik ihlali anlamına gelir. Üretim (production) erişimi yalnızca Deniz'de olur (bkz. MVP planı K).
+
+> ⚠️ **Kritik uyarı 5: Tek kişilik operasyon, kriz müdahalesi için yetersiz.**
+> Geliştirme Deniz + AI ile yapılabilir. Ama **canlı topluluk operasyonu** (moderasyon, kriz mesajları, şikâyetler) AI ile yürütülemez ve tek kişiyle sürdürülemez. Kapalı beta başlamadan önce **en az 2 yarı zamanlı moderatör**, nöbet çizelgesi ve uzman onaylı kriz protokolü hazır olmalı. Kriz ekranı (112 ve destek hatları yönlendirmesi) insan beklemeden **otomatik** gösterilmeli. Platformun 7/24 izlenmediği kullanıcıya dürüstçe söylenmeli.
+
+> ⚠️ **Kritik uyarı 6: İki AI'ın aynı kod tabanında çalışması süreç gerektirir.**
+> Kod yalnızca Claude Code tarafından, dal (branch) + pull request akışıyla yazılır. Codex **inceleyici** rolündedir: PR'a yorum yapar, doğrudan `main` dalına yazmaz. `main` dalı korunur (CI yeşil olmadan ve Deniz onaylamadan birleştirme yok). Aksi halde çakışan değişiklikler ve gözden kaçan güvenlik hataları oluşur.
