@@ -3,7 +3,9 @@
 **Çalışma adı:** "Aralık" (isim önerileri Bölüm 33'te)
 **Belge türü:** Ürün konsepti, fizibilite ve MVP öncesi değerlendirme
 **Tarih:** 1 Kasım 2026
-**Durum:** Taslak v1. Birlikte değerlendirilecek. Kod yok, servis satın alımı yok.
+**Durum:** Taslak v1. Kod yok, servis satın alımı yok.
+
+> **Önemli:** 2 Kasım 2026'da onaylanan sabit ürün kararları [`urun-kararlari.md`](urun-kararlari.md) dosyasındadır. Bu raporla çelişen her noktada o belge geçerlidir: sesli mesaj ayrı bir Seviye 1.5'tir, sosyal akış Faz 2'ye ertelenmiştir, davet limiti ücretsiz ve Premium için eşittir, avatar MVP'dedir, lansman İstanbul'dadır.
 
 ---
 
