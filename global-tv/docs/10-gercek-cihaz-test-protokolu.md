@@ -118,6 +118,6 @@ Hata kaydında şunlar yazılır:
 - **P2:** Görsel veya küçük sorun
 
 ## 5. Size düşen (Aşama A, bugün yapılabilir, yaklaşık 30 dk)
-1. Son test APK'sını Android telefonunuza kurun (05 §5.1). ⚠️ `apk-19` **4 Kasım**'da silinir. Bu aşamanın yeni APK'sı 30 gün saklanacak.
+1. Son test APK'sını Android telefonunuza kurun (05 §5.1). ⚠️ `apk-19` **4 Kasım**'da silinir. Bu aşamanın APK'sı (`apk-22`) 2 Aralık'a kadar duruyor.
 2. TV-1…TV-7, FV-1, MD-1, MD-2, GZ-1, GZ-2, DL-1, DL-2 senaryolarını deneyin.
 3. Sonuçları kısa bir mesajla bana iletin; ben rapora işlerim.

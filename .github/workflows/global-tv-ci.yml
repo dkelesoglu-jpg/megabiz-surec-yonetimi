@@ -96,7 +96,8 @@ jobs:
           version: 2.122.0
       - name: Yığını başlat (migration'lar + demo veri)
         working-directory: global-tv
-        run: supabase start -x studio,imgproxy,logflare,vector,supavisor,postgres-meta
+        # mailpit (e-posta yakalayıcı) testlerde kullanılmıyor; 54324 portu runner'da dolu olabiliyor (2 Kasım, çalışma 21)
+        run: supabase start -x studio,imgproxy,logflare,vector,supavisor,postgres-meta,mailpit
       - name: Edge Functions'ı başlat
         working-directory: global-tv
         run: |

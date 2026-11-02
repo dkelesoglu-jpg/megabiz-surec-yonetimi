@@ -81,14 +81,15 @@ P0 geliştirme toplamı yaklaşık 4,5 gün; 15 Aralık kod dondurmasına göre 
 | Gerçek Supabase yığını: uygulama depoları | ✅ 8/8 (yerel) · ✅ CI |
 | Mobil analiz + birim/arayüz | ✅ temiz · 48/48 |
 | Yönetim paneli birim/arayüz | ✅ 63/63 |
-| Android emülatörü, uçtan uca | ANDROID_SONUC |
-| iOS simülatörü, derleme + uçtan uca | IOS_SONUC |
-| Test APK'sı (30 gün saklanır) | APK_SONUC |
-| Panel tarayıcı testleri | PANEL_E2E |
+| Android emülatörü, uçtan uca | ✅ 1/1 (CI çalışması 22) |
+| iOS simülatörü, derleme + uçtan uca | ✅ 1/1 (CI çalışması 22) |
+| Test APK'sı (30 gün saklanır) | ✅ `apk-22`, **2 Aralık**'a kadar saklanır |
+| Panel tarayıcı testleri | ✅ (CI çalışması 22, ubuntu-24.04) |
 
 **CI'da bulunan ve düzeltilen:**
 - GitHub `ubuntu-latest`'i Ubuntu 26.04'e geçirdi; panelin tarayıcı testleri bu yüzden kuruluma bile başlayamadı (Playwright desteklemiyor). Panel işi `ubuntu-24.04`'e sabitlendi.
 - Yeni test dosyasında gereksiz bir içe aktarma analiz uyarısı veriyordu; düzeltildi.
+- Gerçek Supabase işi, aynı commit'in gönderim çalışmasında (21) bir kez düştü. Neden: CI makinesinde e-posta yakalayıcının 54324 portu başka bir işlem tarafından kullanılıyordu, yığın başlamadı. Bu servis testlerde kullanılmadığı için yığından çıkarıldı. Servis olmadan yerelde yeniden doğrulandı: sunucu 29/29, uygulama 8/8.
 
 ## 6. Riskler
 | Risk | Etki | Önlem / karar |
@@ -104,7 +105,7 @@ P0 geliştirme toplamı yaklaşık 4,5 gün; 15 Aralık kod dondurmasına göre 
 
 ## 7. Sizden beklenen kararlar
 1. Depoyu gizli yapın (§1, 3 adım) ve bana haber verin.
-2. Saklamak istediğiniz APK'ları 4 Kasım'dan önce indirin (Actions → çalışma 19 → Artifacts).
+2. Eski bir APK'yı saklamak isterseniz 4 Kasım'dan önce indirin (çalışma 19). Güncel sürüm `apk-22` 2 Aralık'a kadar duruyor.
 3. Supabase **A seçeneği** onayı: proje e-postası + yeni ücretsiz hesap + `globaltv-dev`.
 4. Veri sorumlusu ve şirket kuruluş zamanı (RTÜK/KVKK için).
 5. RTÜK ve KVKK için hukukçuya danışılacak mı? Beta yalnızca test/açık lisanslı içerikle mi yapılacak?
