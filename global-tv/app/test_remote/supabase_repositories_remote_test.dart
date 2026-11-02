@@ -3,7 +3,6 @@
 //
 //   SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... GLOBALTV_REMOTE_TESTS=1 \
 //     flutter test test_remote
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

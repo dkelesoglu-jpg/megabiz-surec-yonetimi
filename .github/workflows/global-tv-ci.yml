@@ -148,7 +148,8 @@ jobs:
 
   admin:
     name: Yönetim paneli (tip, birim, uçtan uca)
-    runs-on: ubuntu-latest
+    # Playwright 1.56 ubuntu-latest'in yeni sürümünü (26.04) desteklemiyor; 2 Kasım 2026'da CI'da düştü.
+    runs-on: ubuntu-24.04
     defaults:
       run:
         working-directory: global-tv/admin

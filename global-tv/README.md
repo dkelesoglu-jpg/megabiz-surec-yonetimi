@@ -34,8 +34,9 @@ global-tv/
 │   ├── functions/          Edge Functions: get-stream, delete-account
 │   ├── tests/              RLS testleri (düz PostgreSQL üzerinde, CI'da)
 │   ├── seed.sql            Demo kanallar (yalnızca dev/staging)
-│   └── config.toml         Yerel Supabase (supabase start)
-├── admin/                  Web yönetim paneli (2. hafta başlıyor)
+│   ├── config.toml         Yerel Supabase (supabase start)
+│   └── remote-tests/       Gerçek Supabase sunucusuna karşı güvenlik testleri
+├── admin/                  Web yönetim paneli (React, TR/EN, demo + Supabase)
 ├── env/                    Ortam şablonları (*.example.json) — gerçek anahtarlar ASLA commit edilmez
 └── docs/
     ├── 01-fizibilite-ve-mimari.md
@@ -44,6 +45,12 @@ global-tv/
     ├── 04-bagimsizlik-ve-hesap-gecisi.md
     ├── 05-cihaz-testi-rehberi.md
     ├── 06-beta-bagimliliklari.md
+    ├── 07-github-guvenlik-denetimi.md
+    ├── 08-depo-gizlilik-vercel-ve-tasima.md
+    ├── 09-supabase-kurulum-plani.md
+    ├── 10-gercek-cihaz-test-protokolu.md
+    ├── 11-beta-hazirlik.md
+    ├── test-raporlari/     Test raporları
     ├── is-listeleri/       Test, yayın lisansı, mağaza hazırlığı iş listeleri
     └── haftalik-raporlar/  Her hafta bir rapor
 ```
@@ -67,6 +74,14 @@ Testler:
 cd global-tv/app && flutter test                       # birim + widget
 cd global-tv/app && flutter test integration_test      # bağlı cihaz/emülatörde uçtan uca
 PGURL=postgres://... global-tv/supabase/tests/run_pg_tests.sh   # veritabanı kuralları
+```
+
+Gerçek Supabase sunucusuna karşı (yerel yığın veya globaltv-dev; şirket projelerinde çalışmayı reddeder):
+
+```bash
+cd global-tv/supabase/remote-tests && npm ci
+SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... GLOBALTV_REMOTE_TESTS=1 npm test
+cd global-tv/app && SUPABASE_URL=... SUPABASE_PUBLISHABLE_KEY=... SUPABASE_SECRET_KEY=... GLOBALTV_REMOTE_TESTS=1 flutter test test_remote
 ```
 
 Yerel Supabase (hesap gerekmez, Docker gerekir): `cd global-tv && npx supabase start` → çıktıdaki
