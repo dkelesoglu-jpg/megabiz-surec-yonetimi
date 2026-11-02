@@ -225,3 +225,50 @@ Yeni bir şehir, **(A) mevcut şehrin sağlıklı olduğu** ve **(B) yeni şehir
 
 > ⚠️ **Kritik uyarı 6: İki AI'ın aynı kod tabanında çalışması süreç gerektirir.**
 > Kod yalnızca Claude Code tarafından, dal (branch) + pull request akışıyla yazılır. Codex **inceleyici** rolündedir: PR'a yorum yapar, doğrudan `main` dalına yazmaz. `main` dalı korunur (CI yeşil olmadan ve Deniz onaylamadan birleştirme yok). Aksi halde çakışan değişiklikler ve gözden kaçan güvenlik hataları oluşur.
+
+---
+
+## ÜK-09 · MVP Planı Onayı ve Güven Çekirdeği Faz 1 Sınırları (2 Kasım 2026)
+
+- **MVP Geliştirme Planı v1 onaylandı.** Yaşayan bir belgedir. Önceden alınmış kararlar sessizce değiştirilmez; her değişiklik aşağıdaki **Değişiklik Kaydı**na şu dört başlıkla yazılır: mevcut karar, yeni karar, neden, etkilenen modüller.
+- **Konumlandırma değişmez** (ÜK-01). Swipe/dating mekaniği eklenmez.
+- **Kademeli iletişim** bağımsız yeteneklerle modellenir: `text_message`, `media_share`, `voice_message`, `voice_call`, `video_call`, `meetup`. MVP'de yalnızca ilk üçü işlevseldir.
+- **Kör onay bir güvenlik gereksinimidir.** "Hayır" ya da "şimdilik değil" diyen kişi API'den, istemciden, zamanlamadan ve olay kayıtlarından çıkarılamaz.
+- **Güven Çekirdeği Faz 1:**
+  - Yalnızca yerel ortamda, sentetik veriyle ve ücretsiz araçlarla geliştirilir.
+  - Gerçek kişi verisi, kimlik, fotoğraf, telefon, e-posta ya da mesaj kullanılmaz.
+  - Supabase Cloud, ücretli plan, gerçek API anahtarı ve GitHub reposu yok.
+- **Repo:** Teknik çalışma adı `aralik-social`. Özel ve bağımsız olacak. Şimdilik yalnızca yerel klasör; GitHub reposu Deniz'in açık onayıyla oluşturulur.
+- **Ad kullanımı:** Kod ve tasarımda geçici olarak "Project Aralık" adı kullanılır. Nihai marka kullanılmaz.
+- **İsim finalistleri:** Aralık · Usul · Arala · Usulca. "Masa" marka listesinden çıkarıldı.
+- **AI çalışma kuralı:**
+  - Claude Code ana geliştiricidir.
+  - Codex/ChatGPT yalnızca inceleme, güvenlik eleştirisi ve test senaryosu kontrolü yapar.
+  - **İki AI aynı dosyada eşzamanlı geliştirme yapmaz.**
+- **AI'a veri yasağı:** Özel mesajlar, kimlik bilgileri, telefonlar, e-postalar, fotoğraflar, selfie/biyometri, konum, kriz mesajları, erişim anahtarları, gizli anahtarlar ve service role anahtarı hiçbir genel amaçlı AI sohbetine manuel olarak gönderilmez. AI moderasyonu ayrı bir gizlilik ve güvenlik tasarımıyla ele alınacak.
+- **Yaş doğrulama:**
+  - Ayrı modüldür. Sağlayıcıdan bağımsız bir `AgeVerificationProvider` arayüzü kullanılır.
+  - Gerçek e-Devlet entegrasyonu, scraping ya da üçüncü taraf doğrulama servisi yok.
+  - Uygulamanın "sosyal ağ sağlayıcı" tanımına girip girmediği teknik ekip tarafından hukuki gerçek olarak kabul edilmez; hukuk görüşü beklenir.
+- **Bu aşamada geliştirilmeyecekler:** Sosyal akış, sesli ve görüntülü görüşme, buluşma, ödeme, Premium, hediye, AI emoji, push bildirimi, gerçek KYC, e-Devlet, gerçek AI moderasyonu, mağaza işlemleri.
+- **Durma noktası:** Faz 1 tamamlanınca rapor verilir ve Deniz onaylamadan bir sonraki sprint başlamaz.
+
+---
+
+## Değişiklik Kaydı
+
+Format: **Mevcut karar → Yeni karar · Neden · Etkilenen modüller**
+
+| # | Mevcut karar (MVP Planı v1) | Yeni karar | Neden | Etkilenen modüller |
+|---|---|---|---|---|
+| DK-01 | Yetenek adları `text`, `photo`, `voice_message`, `voice_call`, `video_call`, `meet` | `text_message`, `media_share`, `voice_message`, `voice_call`, `video_call`, `meetup`. `media_share` fotoğraf, video ve dosyayı kapsar (MVP arayüzünde yalnızca fotoğraf) | Deniz'in ÜK-09 kararı; video ve dosya da aynı kuralla korunmalı | M13–M17, E.2–E.3, F, M (testler), J6–J8 |
+| DK-02 | Rıza motoru: teklif turları (`permission_rounds`), tur başına oylar, 7 günlük tur, sonucun `closes_at` anında yansıması, 7/14 günlük cooldown'lar | **Bağımsız kör onay anahtarları.** Her kullanıcı her yetenek için yalnızca kendi kararını tutar (`yes` / `not_now` / `never_ask`). İki geçerli `yes` olduğunda yetenek **anında** açılır. Olumsuz ya da cevapsız karar hiçbir gözlemlenebilir değişiklik, olay ya da zaman damgası üretmez. `yes` kararlarının geçerlilik süresi var (katalogda, varsayılan 7 gün). Geri çekmede iki tarafın kararları sıfırlanır. "Tekrar sorma baskısı" kuralları (prompt cooldown) bildirim sprintine taşındı | Daha basit ve **yapısal olarak sızıntısız**: Olumsuz karar hiçbir şeyi değiştirmediği için zamanlamadan çıkarım yapılamaz. Ayrıca Deniz'in "A kararı, B kararı, durum, opened_at, revoked_at" modeliyle birebir uyumlu | M14, J6–J8, E.3 (rıza tabloları), US-20, US-24 (AC3), AB-05, AB-30 |
+| DK-03 | `permission_events` içinde `vote_cast` olayları; kullanıcı kendi olaylarını okuyabilir | Olay kaydına yalnızca **durum değişiklikleri** yazılır (`opened`, `revoked`, `reset_by_block`, `reset_by_end`). "Hayır" ve "şimdilik değil" hiçbir olay tablosuna yazılmaz. Olay kaydı kullanıcılara tamamen kapalıdır | ÜK-09: Olay kayıtlarından karar çıkarılamamalı | E.3, H (audit görüntüleme) |
+| DK-04 | İzin kapanınca önceki medya gizlenir | Netleştirme: Geri çekilen yeteneğe ait önceki medya **iki taraf için de gizlenir ve izin yeniden açılsa bile geri gelmez.** Dosyaların fiziksel silinme ve saklama süresi Storage sprintinde belirlenecek | Geri çekilen rıza, geçmiş içeriği de kapsamalı; en güvenli varsayılan | M16, M17, J8, US-24 |
+| DK-05 | Kod adı `project-a` | Repo ve klasör `aralik-social`; kodda ve tasarımda "Project Aralık" | Deniz'in kararı | J, K |
+| DK-06 | S3: e-Devlet "gerçek entegrasyon ya da adaptör" | Hukuk görüşüne kadar **yalnızca** sağlayıcıdan bağımsız `AgeVerificationProvider` arayüzü ve yerel sahte sağlayıcı. Gerçek bağlantı yok | ÜK-09; hukuki belirsizlik | M02, S3, J1, US-03 |
+| DK-07 | S12: LLM tabanlı moderasyon sınıflandırıcısı entegrasyonu | AI moderasyon sağlayıcısı, **ayrı bir gizlilik ve güvenlik tasarımı onaylanmadan** entegre edilmez. O zamana kadar deterministik kurallar (IBAN, kart, telefon, link vb.) kullanılır | ÜK-09 (AI ve veri kuralı) | M24, M25, G, S12 |
+| DK-08 | K.1: Local ortam Supabase CLI + Docker | **Geçici:** Bu oturumda Docker çalışmadığı için yerel PostgreSQL 16 + pgTAP + Supabase rol/`auth.uid()` emülasyonu kullanılıyor. Migration'lar Supabase ile uyumlu yazıldı; Docker erişimi olan ilk ortamda Supabase CLI ile yeniden doğrulanacak | Teknik kısıt | K, S0 |
+| DK-09 | Davette `passed` durumu | Durum adı `not_now`. `reported` durumu da gönderene `not_now` gibi maskelenir (önce `pending`, süre bitince `expired`). Alıcıya bağlı tüm davet reddi nedenleri (engel, bekleyen davet, cooldown, kota) tek bir genel hata döndürür | Rapor ve engelin sızmaması | M11, US-17, US-18 |
+| DK-10 | Seviye 1 yalnızca bağlantıyı bitirerek kapanır | `text_message` da tek taraflı kapatılabilir (sohbet salt okunur olur); yeniden açmak çift onay ister | "Her izin her zaman geri çekilebilir" ilkesiyle tutarlılık | M13, M14 |
+| DK-11 | E.5: Mesaj gövdesi şifreli (`body_enc`) | **Ertelendi:** Faz 1'de `body` düz metin (yalnızca sentetik veri). Şifreleme kararı E.5'teki kapıyla S5'te verilecek | Faz 1 kapsamı rıza ve yetki kanıtı | E.5, S5 |
