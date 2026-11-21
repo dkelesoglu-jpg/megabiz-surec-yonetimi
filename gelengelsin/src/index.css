@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-50: #FFF3EC;
+  --color-brand-100: #FFE3D3;
+  --color-brand-200: #FFC4A6;
+  --color-brand-500: #F2683A;
+  --color-brand-600: #E14D1F;
+  --color-brand-700: #BF3A10;
+  --color-brand-800: #94300F;
+  --color-sun-300: #FFD976;
+  --color-sun-400: #FFC83D;
+  --color-cream: #FFF8F1;
+  --color-ink: #231C17;
+  --color-ink-soft: #5E534B;
+  --color-line: #EFE3D8;
+  --color-going: #BF3A10;
+  --color-going-bg: #FFE9DE;
+  --color-need: #6B2FC4;
+  --color-need-bg: #EFE5FF;
+  --color-meet: #1F5FCF;
+  --color-meet-bg: #E3EDFF;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html, body { background: #F6EEE6; color: var(--color-ink); -webkit-tap-highlight-color: transparent; }
+body { font-family: var(--font-sans); }
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+:focus-visible { outline: 3px solid var(--color-sun-400); outline-offset: 2px; border-radius: 10px; }
+@keyframes pop { 0% { transform: scale(.96); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+.anim-pop { animation: pop .18s ease-out; }
+@keyframes rise { 0% { transform: translateY(12px); opacity: 0 } 100% { transform: none; opacity: 1 } }
+.anim-rise { animation: rise .22s ease-out; }
