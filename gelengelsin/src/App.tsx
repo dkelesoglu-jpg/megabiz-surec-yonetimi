@@ -126,6 +126,9 @@ export default function App() {
   const { userId } = useStore();
   return (
     <div className="mx-auto min-h-dvh max-w-md bg-cream shadow-[0_0_60px_rgba(0,0,0,.08)]">
+      <div className="bg-ink px-3 py-1.5 text-center text-[12px] font-semibold text-white" role="note" data-testid="prototype-banner">
+        🧪 Prototip / demo: Tüm kişi ve planlar örnektir, veriler yalnızca bu tarayıcıda saklanır.
+      </div>
       <Header />
       {/* Kullanıcı değişince ekran durumu sıfırlansın diye key */}
       <main key={userId} className="pb-28">
